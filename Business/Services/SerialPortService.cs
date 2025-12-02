@@ -140,8 +140,54 @@ private void UpdateState(ConnectionState newState, string message)
      }
 
         public void Dispose()
+        {
+            // 同步释放资源，避免阻塞
+   try
+       {
+     if (_serialPort != null)
   {
-            DisconnectAsync().Wait();
+ // 直接同步关闭，不使用异步
+if (_serialPort.IsOpen)
+ {
+       try
+         {
+     _serialPort.Close();
+      }
+       catch
+  {
+              // 忽略关闭错误
+       }
+            }
+
+     // 解除事件订阅
+try
+         {
+       _serialPort.DataReceived -= OnSerialPortDataReceived;
+         }
+       catch
+{
+// 忽略事件解除错误
         }
+
+    // 释放串口资源
+          try
+           {
+         _serialPort.Dispose();
+  }
+              catch
+      {
+      // 忽略释放错误
+          }
+
+     _serialPort = null;
+    _currentConfig = null;
+    _currentState = ConnectionState.Disconnected;
+     }
+  }
+            catch
+        {
+    // 确保Dispose不抛出异常
+  }
+     }
     }
 }

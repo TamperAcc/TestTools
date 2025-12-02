@@ -237,12 +237,19 @@ m.Result = (IntPtr)HTRIGHT;
 
 protected override void OnFormClosing(FormClosingEventArgs e)
         {
-  // 释放资源
- _serialPortService?.Dispose();
-            _deviceController?.Dispose();
-        UIHelper.DisposeFonts();
+            try
+  {
+    // 快速释放资源，不等待异步操作
+   _serialPortService?.Dispose();
+       _deviceController?.Dispose();
+    UIHelper.DisposeFonts();
+ }
+  catch
+   {
+      // 忽略释放错误，确保窗口能关闭
+   }
         
-            base.OnFormClosing(e);
+         base.OnFormClosing(e);
         }
     }
 }
