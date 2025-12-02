@@ -23,7 +23,7 @@ namespace WinFormsApp3.Business.Services
         public ConnectionState CurrentState => _currentState;
 
         public async Task<bool> ConnectAsync(ConnectionConfig config)
-  {
+        {
             if (config == null || !config.IsValid())
  {
            UpdateState(ConnectionState.Error, "无效的配置");
@@ -55,8 +55,11 @@ namespace WinFormsApp3.Business.Services
 
      _serialPort.DataReceived += OnSerialPortDataReceived;
 
-            // 异步打开串口
-  await Task.Run(() => _serialPort.Open());
+            // 使用 ConfigureAwait(false) 避免阻塞UI线程
+  await Task.Run(() => 
+            {
+      _serialPort.Open();
+              }).ConfigureAwait(false);
 
  _currentConfig = config;
      UpdateState(ConnectionState.Connected, "已连接");

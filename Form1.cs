@@ -83,17 +83,29 @@ namespace WinFormsApp3
    Encoding = _appConfig.ConnectionSettings.Encoding
     };
        
-      // 连接
+      // 禁用连接按钮但不阻塞UI
    btnConnect.Enabled = false;
-                var success = await _serialPortService.ConnectAsync(config);
-     btnConnect.Enabled = true;
+          
+ // 强制UI更新，确保"连接中"状态显示
+        Application.DoEvents();
    
-                if (success)
-         {
-        // 保存配置
-                 await _configRepository.SaveAsync(_appConfig);
-     }
-            }
+      try
+     {
+     // 异步连接，不阻塞UI线程
+     var success = await _serialPortService.ConnectAsync(config);
+    
+  if (success)
+{
+          // 保存配置
+       await _configRepository.SaveAsync(_appConfig);
+      }
+        }
+       finally
+   {
+       // 无论成功失败都重新启用按钮
+    btnConnect.Enabled = true;
+      }
+    }
         }
 
         private async void btnOn_Click(object sender, EventArgs e)
