@@ -118,18 +118,25 @@ namespace WinFormsApp3
   await _deviceController.TurnOffAsync();
         }
 
-   private void menuSettings_Click(object sender, EventArgs e)
+   private async void menuSettings_Click(object sender, EventArgs e)
         {
    using (var settingsForm = new SettingsForm(_appConfig.SelectedPort, _appConfig.IsPortLocked, _appConfig.DeviceName))
    {
-       if (settingsForm.ShowDialog() == DialogResult.OK)
-            {
+if (settingsForm.ShowDialog() == DialogResult.OK)
+          {
      // ∏¸–¬≈‰÷√
-           _appConfig.SelectedPort = settingsForm.SelectedPort;
-            _appConfig.IsPortLocked = settingsForm.IsPortLocked;
+  _appConfig.SelectedPort = settingsForm.SelectedPort;
+   _appConfig.IsPortLocked = settingsForm.IsPortLocked;
    
         // ±£¥Ê≈‰÷√
-            _configRepository.SaveAsync(_appConfig).Wait();
+            try
+            {
+   await _configRepository.SaveAsync(_appConfig);
+      }
+  catch
+   {
+   // ∫ˆ¬‘±£¥Ê¥ÌŒÛ
+     }
   }
        }
         }
