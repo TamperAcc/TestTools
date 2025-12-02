@@ -15,7 +15,7 @@ namespace WinFormsApp3.Business.Models
         public Parity Parity { get; set; } = Parity.None;
     public int DataBits { get; set; } = 8;
         public StopBits StopBits { get; set; } = StopBits.One;
-        public Encoding Encoding { get; set; } = Encoding.UTF8;
+    public Encoding Encoding { get; set; } = Encoding.UTF8;
     public int ReadTimeout { get; set; } = 500;
     public int WriteTimeout { get; set; } = 500;
 
@@ -44,7 +44,7 @@ namespace WinFormsApp3.Business.Models
     {
         public string DeviceName { get; set; }
   public ConnectionState ConnectionState { get; set; }
-      public PowerState PowerState { get; set; }
+      public DevicePowerState PowerState { get; set; }
     public DateTime LastUpdateTime { get; set; }
       public string StatusMessage { get; set; }
 
@@ -52,7 +52,7 @@ namespace WinFormsApp3.Business.Models
 {
    LastUpdateTime = DateTime.Now;
       ConnectionState = ConnectionState.Disconnected;
-      PowerState = PowerState.Unknown;
+      PowerState = DevicePowerState.Unknown;
   }
 
  /// <summary>

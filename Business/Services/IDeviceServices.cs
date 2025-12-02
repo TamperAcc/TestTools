@@ -89,9 +89,9 @@ public ConnectionState OldState { get; }
     public class DeviceStatusChangedEventArgs : EventArgs
   {
       public DeviceStatus Status { get; }
-    public PowerState OldPowerState { get; }
+    public DevicePowerState OldPowerState { get; }
 
-      public DeviceStatusChangedEventArgs(DeviceStatus status, PowerState oldPowerState)
+      public DeviceStatusChangedEventArgs(DeviceStatus status, DevicePowerState oldPowerState)
    {
    Status = status;
   OldPowerState = oldPowerState;

@@ -34,9 +34,9 @@ namespace WinFormsApp3.Business.Enums
     }
 
     /// <summary>
- /// 电源状态枚举
+ /// 设备电源状态枚举
     /// </summary>
-    public enum PowerState
+    public enum DevicePowerState
     {
      /// <summary>
         /// 未知状态
@@ -56,15 +56,15 @@ namespace WinFormsApp3.Business.Enums
 
     /// <summary>
     /// 设备状态枚举
-    /// </summary>
+  /// </summary>
     public enum DeviceState
     {
-        /// <summary>
+   /// <summary>
    /// 离线
         /// </summary>
  Offline = 0,
 
-        /// <summary>
+/// <summary>
 /// 在线
    /// </summary>
    Online = 1,
@@ -76,7 +76,7 @@ namespace WinFormsApp3.Business.Enums
 
       /// <summary>
         /// 忙碌
-        /// </summary>
+      /// </summary>
   Busy = 3,
 
       /// <summary>
