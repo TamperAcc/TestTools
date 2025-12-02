@@ -29,19 +29,34 @@
         private void InitializeComponent()
         {
             btnConnect = new Button();
-            txtOutput = new TextBox();
             lblStatus = new Label();
-            cmbPortName = new ComboBox();
-            lblPort = new Label();
-            btnLock = new Button();
-            btnRefresh = new Button();
-            btnClear = new Button();
+            menuStrip1 = new MenuStrip();
+            menuSettings = new ToolStripMenuItem();
+            btnOn = new Button();
+            btnOff = new Button();
+            menuStrip1.SuspendLayout();
             SuspendLayout();
+            // 
+            // menuStrip1
+            // 
+            menuStrip1.Items.AddRange(new ToolStripItem[] { menuSettings });
+            menuStrip1.Location = new Point(0, 0);
+            menuStrip1.Name = "menuStrip1";
+            menuStrip1.Size = new Size(800, 25);
+            menuStrip1.TabIndex = 8;
+            menuStrip1.Text = "menuStrip1";
+            // 
+            // menuSettings
+            // 
+            menuSettings.Name = "menuSettings";
+            menuSettings.Size = new Size(44, 21);
+            menuSettings.Text = "设置";
+            menuSettings.Click += menuSettings_Click;
             // 
             // btnConnect
             // 
             btnConnect.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnConnect.Location = new Point(668, 20);
+            btnConnect.Location = new Point(668, 35);
             btnConnect.Name = "btnConnect";
             btnConnect.Size = new Size(120, 35);
             btnConnect.TabIndex = 0;
@@ -49,104 +64,69 @@
             btnConnect.UseVisualStyleBackColor = true;
             btnConnect.Click += btnConnect_Click;
             // 
-            // txtOutput
-            // 
-            txtOutput.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            txtOutput.Location = new Point(12, 70);
-            txtOutput.Multiline = true;
-            txtOutput.Name = "txtOutput";
-            txtOutput.ScrollBars = ScrollBars.Vertical;
-            txtOutput.Size = new Size(776, 328);
-            txtOutput.TabIndex = 1;
-            txtOutput.ReadOnly = true;
-            // 
             // lblStatus
             // 
-            lblStatus.AutoSize = true;
-            lblStatus.Location = new Point(12, 27);
+            lblStatus.AutoSize = false;
+            lblStatus.Location = new Point(12, 35);
             lblStatus.Name = "lblStatus";
-            lblStatus.Size = new Size(109, 20);
+            lblStatus.Size = new Size(250, 30);
             lblStatus.TabIndex = 2;
             lblStatus.Text = "状态: 未连接";
+            lblStatus.TextAlign = ContentAlignment.MiddleCenter;
+            lblStatus.BorderStyle = BorderStyle.FixedSingle;
             // 
-            // cmbPortName
+            // btnOn
             // 
-            cmbPortName.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmbPortName.FormattingEnabled = true;
-            cmbPortName.Location = new Point(310, 24);
-            cmbPortName.Name = "cmbPortName";
-            cmbPortName.Size = new Size(120, 28);
-            cmbPortName.TabIndex = 3;
+            btnOn.Location = new Point(272, 35);
+            btnOn.Name = "btnOn";
+            btnOn.Size = new Size(70, 30);
+            btnOn.TabIndex = 9;
+            btnOn.Text = "ON";
+            btnOn.UseVisualStyleBackColor = true;
+            btnOn.Click += btnOn_Click;
             // 
-            // lblPort
+            // btnOff
             // 
-            lblPort.AutoSize = true;
-            lblPort.Location = new Point(240, 27);
-            lblPort.Name = "lblPort";
-            lblPort.Size = new Size(64, 20);
-            lblPort.TabIndex = 4;
-            lblPort.Text = "串口号:";
-            // 
-            // btnLock
-            // 
-            btnLock.Location = new Point(440, 22);
-            btnLock.Name = "btnLock";
-            btnLock.Size = new Size(70, 32);
-            btnLock.TabIndex = 5;
-            btnLock.Text = "未锁定";
-            btnLock.UseVisualStyleBackColor = true;
-            btnLock.Click += btnLock_Click;
-            // 
-            // btnRefresh
-            // 
-            btnRefresh.Location = new Point(520, 22);
-            btnRefresh.Name = "btnRefresh";
-            btnRefresh.Size = new Size(70, 32);
-            btnRefresh.TabIndex = 6;
-            btnRefresh.Text = "刷新";
-            btnRefresh.UseVisualStyleBackColor = true;
-            btnRefresh.Click += btnRefresh_Click;
-            // 
-            // btnClear
-            // 
-            btnClear.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnClear.Location = new Point(668, 405);
-            btnClear.Name = "btnClear";
-            btnClear.Size = new Size(120, 35);
-            btnClear.TabIndex = 7;
-            btnClear.Text = "清空输出";
-            btnClear.UseVisualStyleBackColor = true;
-            btnClear.Click += btnClear_Click;
+            btnOff.Location = new Point(352, 35);
+            btnOff.Name = "btnOff";
+            btnOff.Size = new Size(70, 30);
+            btnOff.TabIndex = 10;
+            btnOff.Text = "OFF";
+            btnOff.UseVisualStyleBackColor = true;
+            btnOff.Click += btnOff_Click;
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(9F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
-            Controls.Add(btnClear);
-            Controls.Add(btnRefresh);
-            Controls.Add(btnLock);
-            Controls.Add(lblPort);
-            Controls.Add(cmbPortName);
+            ClientSize = new Size(800, 100);
+            Controls.Add(btnOff);
+            Controls.Add(btnOn);
             Controls.Add(lblStatus);
-            Controls.Add(txtOutput);
             Controls.Add(btnConnect);
+            Controls.Add(menuStrip1);
+            FormBorderStyle = FormBorderStyle.Sizable;
+            MainMenuStrip = menuStrip1;
+            MaximizeBox = true;
+            MinimizeBox = true;
+            MinimumSize = new Size(600, 100);
             Name = "Form1";
-            Text = "串口通信工具";
+            StartPosition = FormStartPosition.CenterScreen;
+            Text = "工具";
             Load += Form1_Load;
+            menuStrip1.ResumeLayout(false);
+            menuStrip1.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
 
         #endregion
 
-        private Button btnConnect;
-        private TextBox txtOutput;
-        private Label lblStatus;
-        private ComboBox cmbPortName;
-        private Label lblPort;
-        private Button btnLock;
-        private Button btnRefresh;
-        private Button btnClear;
+  private Button btnConnect;
+private Label lblStatus;
+        private MenuStrip menuStrip1;
+   private ToolStripMenuItem menuSettings;
+     private Button btnOn;
+        private Button btnOff;
     }
 }
