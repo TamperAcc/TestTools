@@ -1,6 +1,6 @@
-﻿namespace WinFormsApp3
+﻿namespace TestTool
 {
-    partial class Form1
+    partial class MainForm
     {
         /// <summary>
         ///  Required designer variable.
@@ -32,6 +32,7 @@
             lblStatus = new Label();
             menuStrip1 = new MenuStrip();
             menuSettings = new ToolStripMenuItem();
+            menuDeviceSettings = new ToolStripMenuItem();
             btnOn = new Button();
             btnOff = new Button();
             menuStrip1.SuspendLayout();
@@ -48,10 +49,17 @@
             // 
             // menuSettings
             // 
+            menuSettings.DropDownItems.AddRange(new ToolStripItem[] { menuDeviceSettings });
             menuSettings.Name = "menuSettings";
             menuSettings.Size = new Size(44, 21);
             menuSettings.Text = "设置";
-            menuSettings.Click += menuSettings_Click;
+            // 
+            // menuDeviceSettings
+            // 
+            menuDeviceSettings.Name = "menuDeviceSettings";
+            menuDeviceSettings.Size = new Size(148, 22);
+            menuDeviceSettings.Text = "FCC1电源设置";
+            menuDeviceSettings.Click += menuSettings_Click;
             // 
             // btnConnect
             // 
@@ -95,10 +103,8 @@
             btnOff.UseVisualStyleBackColor = true;
             btnOff.Click += btnOff_Click;
             // 
-            // Form1
+            // MainForm
             // 
-            AutoScaleDimensions = new SizeF(9F, 20F);
-            AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 100);
             Controls.Add(btnOff);
             Controls.Add(btnOn);
@@ -110,10 +116,10 @@
             MaximizeBox = true;
             MinimizeBox = true;
             MinimumSize = new Size(600, 100);
-            Name = "Form1";
+            Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "工具";
-            Load += Form1_Load;
+            Load += MainForm_Load;
             menuStrip1.ResumeLayout(false);
             menuStrip1.PerformLayout();
             ResumeLayout(false);
@@ -122,11 +128,12 @@
 
         #endregion
 
-  private Button btnConnect;
-private Label lblStatus;
+        private Button btnConnect;
+        private Label lblStatus;
         private MenuStrip menuStrip1;
-   private ToolStripMenuItem menuSettings;
-     private Button btnOn;
+        private ToolStripMenuItem menuSettings;
+        private ToolStripMenuItem menuDeviceSettings;
+        private Button btnOn;
         private Button btnOff;
     }
 }

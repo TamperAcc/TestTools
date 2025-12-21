@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>TestTool</RootNamespace>
+    <AssemblyName>TestTool</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" Version="9.0.11" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="8.0.0" />
+    <PackageReference Include="Polly" Version="8.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Prevent benchmark project sources from being compiled into the main WinForms app -->
+    <Compile Remove="BenchmarkSuite1\**\*.cs" />
+    <EmbeddedResource Remove="BenchmarkSuite1\**\*" />
+    <None Include="BenchmarkSuite1\**\*" />
+    <!-- Exclude test project sources from main app build -->
+    <Compile Remove="Test Tool.Tests\**\*.cs" />
+    <EmbeddedResource Remove="Test Tool.Tests\**\*" />
+    <None Include="Test Tool.Tests\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include=".github\scripts\check_onchange.ps1" />
+    <None Include=".github\workflows\ci.yml" />
+    <None Include=".github\workflows\options-monitor-check.yml" />
+    <None Include="WinFormsApp3.Tests\WinFormsApp3.Tests.csproj" />
+  </ItemGroup>
+
+</Project>

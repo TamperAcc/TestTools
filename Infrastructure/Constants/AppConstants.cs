@@ -1,6 +1,6 @@
 using System;
 
-namespace WinFormsApp3.Infrastructure.Constants
+namespace TestTool.Infrastructure.Constants
 {
     /// <summary>
     /// 应用程序常量
@@ -12,9 +12,12 @@ namespace WinFormsApp3.Infrastructure.Constants
         /// </summary>
         public static class ConfigFiles
    {
+            // 存储串口名的配置文件
             public const string SerialPort = "serialport.config";
+            // 存储锁定状态的配置文件
             public const string LockState = "portlock.config";
-      public const string DeviceName = "devicename.config";
+            // 存储设备名称的配置文件
+            public const string DeviceName = "devicename.config";
         }
 
         /// <summary>
@@ -22,8 +25,11 @@ namespace WinFormsApp3.Infrastructure.Constants
    /// </summary>
         public static class Defaults
     {
+            // 默认设备名
             public const string DeviceName = "FCC1电源";
-        public const int BaudRate = 115200;
+            // 默认波特率
+            public const int BaudRate = 115200;
+          // 默认数据位
           public const int DataBits = 8;
         }
 
@@ -32,7 +38,9 @@ namespace WinFormsApp3.Infrastructure.Constants
   /// </summary>
       public static class Commands
         {
+     // 开机命令
      public const string PowerOn = "ON";
+            // 关机命令
             public const string PowerOff = "OFF";
  }
 
@@ -41,6 +49,7 @@ namespace WinFormsApp3.Infrastructure.Constants
         /// </summary>
         public static class UI
         {
+       // 窗口边角可拖拽区域大小（像素）
        public const int ResizeHandleSize = 10;
      }
     }
