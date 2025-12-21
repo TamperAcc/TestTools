@@ -2,36 +2,36 @@ namespace TestTool
 {
     partial class SettingsForm
     {
-   /// <summary>
+        /// <summary>
         /// Required designer variable.
         /// </summary>
-   private System.ComponentModel.IContainer components = null;
+        private System.ComponentModel.IContainer components = null;
 
         /// <summary>
-      /// Clean up any resources being used.
+        /// Clean up any resources being used.
         /// </summary>
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
-    protected override void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
-    {
+            {
                 components.Dispose();
             }
-   base.Dispose(disposing);
-     }
+            base.Dispose(disposing);
+        }
 
         #region Windows Form Designer generated code
 
         /// <summary>
         /// Required method for Designer support - do not modify
-     /// the contents of this method with the code editor.
+        /// the contents of this method with the code editor.
         /// </summary>
-     private void InitializeComponent()
+        private void InitializeComponent()
         {
-     lblPortSelect = new Label();
-    cmbSettingsPort = new ComboBox();
-+            lblBaudRate = new Label();
-+            cmbBaudRate = new ComboBox();
+            lblPortSelect = new Label();
+            cmbSettingsPort = new ComboBox();
+            lblBaudRate = new Label();
+            cmbBaudRate = new ComboBox();
             btnLockPort = new Button();
             btnMonitor = new Button();
             btnOK = new Button();
@@ -48,7 +48,7 @@ namespace TestTool
             lblPortSelect.Name = "lblPortSelect";
             lblPortSelect.Size = new Size(69, 20);
             lblPortSelect.TabIndex = 0;
-            lblPortSelect.Text = "¥Æø⁄∫≈£∫";
+            lblPortSelect.Text = "‰∏≤Âè£Âè∑Ôºö";
             // 
             // cmbSettingsPort
             // 
@@ -59,25 +59,25 @@ namespace TestTool
             cmbSettingsPort.Name = "cmbSettingsPort";
             cmbSettingsPort.Size = new Size(150, 28);
             cmbSettingsPort.TabIndex = 1;
-+            // 
-+            // lblBaudRate
-+            // 
-+            lblBaudRate.AutoSize = true;
-+            lblBaudRate.Location = new Point(20, 75);
-+            lblBaudRate.Name = "lblBaudRate";
-+            lblBaudRate.Size = new Size(69, 20);
-+            lblBaudRate.TabIndex = 7;
-+            lblBaudRate.Text = "≤®Ãÿ¬ £∫";
-+            // 
-+            // cmbBaudRate
-+            // 
-+            cmbBaudRate.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-+            cmbBaudRate.DropDownStyle = ComboBoxStyle.DropDownList;
-+            cmbBaudRate.FormattingEnabled = true;
-+            cmbBaudRate.Location = new Point(95, 72);
-+            cmbBaudRate.Name = "cmbBaudRate";
-+            cmbBaudRate.Size = new Size(150, 28);
-+            cmbBaudRate.TabIndex = 8;
+            // 
+            // lblBaudRate
+            // 
+            lblBaudRate.AutoSize = true;
+            lblBaudRate.Location = new Point(20, 75);
+            lblBaudRate.Name = "lblBaudRate";
+            lblBaudRate.Size = new Size(69, 20);
+            lblBaudRate.TabIndex = 7;
+            lblBaudRate.Text = "Ê≥¢ÁâπÁéáÔºö";
+            // 
+            // cmbBaudRate
+            // 
+            cmbBaudRate.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            cmbBaudRate.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbBaudRate.FormattingEnabled = true;
+            cmbBaudRate.Location = new Point(95, 72);
+            cmbBaudRate.Name = "cmbBaudRate";
+            cmbBaudRate.Size = new Size(150, 28);
+            cmbBaudRate.TabIndex = 8;
             // 
             // btnLockPort
             // 
@@ -86,19 +86,18 @@ namespace TestTool
             btnLockPort.Name = "btnLockPort";
             btnLockPort.Size = new Size(80, 32);
             btnLockPort.TabIndex = 2;
-            btnLockPort.Text = "Œ¥À¯∂®";
+            btnLockPort.Text = "Êú™ÈîÅÂÆö";
             btnLockPort.UseVisualStyleBackColor = true;
             btnLockPort.Click += btnLockPort_Click;
             // 
             // btnMonitor
             // 
             btnMonitor.Anchor = AnchorStyles.Top | AnchorStyles.Right;
--            btnMonitor.Location = new Point(260, 70);
-+            btnMonitor.Location = new Point(260, 70);
+            btnMonitor.Location = new Point(260, 70);
             btnMonitor.Name = "btnMonitor";
             btnMonitor.Size = new Size(80, 32);
             btnMonitor.TabIndex = 6;
-            btnMonitor.Text = "¥Úø™¥Ú”°";
+            btnMonitor.Text = "ÊâìÂºÄÊâìÂç∞";
             btnMonitor.UseVisualStyleBackColor = true;
             btnMonitor.Click += btnMonitor_Click;
             // 
@@ -109,7 +108,7 @@ namespace TestTool
             btnOK.Name = "btnOK";
             btnOK.Size = new Size(90, 35);
             btnOK.TabIndex = 3;
-            btnOK.Text = "»∑∂®";
+            btnOK.Text = "Á°ÆÂÆö";
             btnOK.UseVisualStyleBackColor = true;
             btnOK.Click += btnOK_Click;
             // 
@@ -120,7 +119,7 @@ namespace TestTool
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new Size(90, 35);
             btnCancel.TabIndex = 4;
-            btnCancel.Text = "»°œ˚";
+            btnCancel.Text = "ÂèñÊ∂à";
             btnCancel.UseVisualStyleBackColor = true;
             btnCancel.Click += btnCancel_Click;
             // 
@@ -131,22 +130,21 @@ namespace TestTool
             groupBox1.Controls.Add(lblMessage);
             groupBox1.Controls.Add(lblPortSelect);
             groupBox1.Controls.Add(cmbSettingsPort);
-+            groupBox1.Controls.Add(lblBaudRate);
-+            groupBox1.Controls.Add(cmbBaudRate);
+            groupBox1.Controls.Add(lblBaudRate);
+            groupBox1.Controls.Add(cmbBaudRate);
             groupBox1.Controls.Add(btnLockPort);
             groupBox1.Location = new Point(20, 20);
             groupBox1.Name = "groupBox1";
             groupBox1.Size = new Size(360, 160);
             groupBox1.TabIndex = 5;
             groupBox1.TabStop = false;
-            groupBox1.Text = "¡¨Ω”…Ë÷√";
+            groupBox1.Text = "ËøûÊé•ËÆæÁΩÆ";
             // 
             // lblMessage
             // 
             lblMessage.AutoSize = true;
             lblMessage.ForeColor = SystemColors.ControlDarkDark;
--            lblMessage.Location = new Point(20, 80);
-+            lblMessage.Location = new Point(20, 120);
+            lblMessage.Location = new Point(20, 120);
             lblMessage.Name = "lblMessage";
             lblMessage.Size = new Size(0, 20);
             lblMessage.TabIndex = 3;
@@ -165,7 +163,7 @@ namespace TestTool
             MinimumSize = new Size(400, 260);
             Name = "SettingsForm";
             StartPosition = FormStartPosition.CenterParent;
-            Text = "…Ë÷√";
+            Text = "ËÆæÁΩÆ";
             Load += SettingsForm_Load;
             groupBox1.ResumeLayout(false);
             groupBox1.PerformLayout();
@@ -176,8 +174,8 @@ namespace TestTool
 
         private Label lblPortSelect;
         private ComboBox cmbSettingsPort;
-+        private Label lblBaudRate;
-+        private ComboBox cmbBaudRate;
+        private Label lblBaudRate;
+        private ComboBox cmbBaudRate;
         private Button btnLockPort;
         private Button btnMonitor;
         private Button btnOK;
