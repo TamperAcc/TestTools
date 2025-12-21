@@ -1,4 +1,4 @@
-﻿namespace TestTool
+namespace TestTool
 {
     partial class MainForm
     {
@@ -39,7 +39,7 @@
             SuspendLayout();
             // 
             // menuStrip1
-            // 
+            // 菜单栏
             menuStrip1.Items.AddRange(new ToolStripItem[] { menuSettings });
             menuStrip1.Location = new Point(0, 0);
             menuStrip1.Name = "menuStrip1";
@@ -48,21 +48,21 @@
             menuStrip1.Text = "menuStrip1";
             // 
             // menuSettings
-            // 
+            // 顶级菜单：设置
             menuSettings.DropDownItems.AddRange(new ToolStripItem[] { menuDeviceSettings });
             menuSettings.Name = "menuSettings";
             menuSettings.Size = new Size(44, 21);
             menuSettings.Text = "设置";
             // 
             // menuDeviceSettings
-            // 
+            // 菜单项：打开串口设置窗口
             menuDeviceSettings.Name = "menuDeviceSettings";
             menuDeviceSettings.Size = new Size(148, 22);
-            menuDeviceSettings.Text = "FCC1电源设置";
+            menuDeviceSettings.Text = "串口设置";
             menuDeviceSettings.Click += menuSettings_Click;
             // 
             // btnConnect
-            // 
+            // 连接/断开按钮
             btnConnect.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnConnect.Location = new Point(668, 35);
             btnConnect.Name = "btnConnect";
@@ -73,7 +73,7 @@
             btnConnect.Click += btnConnect_Click;
             // 
             // lblStatus
-            // 
+            // 状态显示标签
             lblStatus.AutoSize = false;
             lblStatus.Location = new Point(12, 35);
             lblStatus.Name = "lblStatus";
@@ -84,7 +84,7 @@
             lblStatus.BorderStyle = BorderStyle.FixedSingle;
             // 
             // btnOn
-            // 
+            // 打开电源按钮
             btnOn.Location = new Point(272, 35);
             btnOn.Name = "btnOn";
             btnOn.Size = new Size(70, 30);
@@ -94,7 +94,7 @@
             btnOn.Click += btnOn_Click;
             // 
             // btnOff
-            // 
+            // 关闭电源按钮
             btnOff.Location = new Point(352, 35);
             btnOff.Name = "btnOff";
             btnOff.Size = new Size(70, 30);

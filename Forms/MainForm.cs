@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -12,40 +13,46 @@ using TestTool.Infrastructure.Helpers;
 namespace TestTool
 {
     /// <summary>
-    /// ´®¿Ú¹¤¾ßÖ÷´°Ìå - ÖØ¹¹°æ±¾
+    /// ä¸²å£å·¥å…·ä¸»çª—ä½“ - é‡æ„ç‰ˆæœ¬
     /// </summary>
     public partial class MainForm : Form
     {
-        // ÒµÎñĞ­µ÷Æ÷£º·â×°Á¬½Ó/ÃüÁî/ÅäÖÃ
+        // ä¸šåŠ¡åè°ƒå™¨ï¼šå°è£…è¿æ¥/å‘½ä»¤/é…ç½®
         private readonly IMainFormCoordinator _coordinator = null!;
         private IOptionsMonitor<AppConfig>? _optionsMonitor;
         private IDisposable? _optionsChangeToken;
         private readonly ILogger<MainForm>? _logger;
         private readonly bool _isDesignMode;
 
-        // Ó¦ÓÃÅäÖÃ»º´æ£¨´Ó²Ö¿â¼ÓÔØ£©
+        // åº”ç”¨é…ç½®ç¼“å­˜ï¼ˆä»ä»“åº“åŠ è½½ï¼‰
         private AppConfig _appConfig = null!;
-        // ´®¿Ú¼àÊÓ´°¿ÚÊµÀı£¨¿ÉÎª¿Õ£©
+        // ä¸²å£ç›‘è§†çª—å£å®ä¾‹ï¼ˆå¯ä¸ºç©ºï¼‰
         private SerialMonitorForm? _serialMonitorForm;
+        // è®¾ç½®çª—å£å®ä¾‹ï¼ˆå¯ä¸ºç©ºï¼Œæ”¹ä¸ºæ— æ¨¡å¼ä»¥å…è®¸ä¸»çª—ä½“æ“ä½œï¼‰
+        private SettingsForm? _settingsForm;
+        // SettingsForm äº‹ä»¶å¤„ç†å¼•ç”¨ï¼Œä¾¿äºè§£ç»‘
+        private EventHandler? _settingsToggleHandler;
+        private EventHandler? _settingsConfirmedHandler;
+        private FormClosedEventHandler? _settingsClosedHandler;
 
-        // ÓÃÓÚ×Ô¶¨Òå´°Ìå¿ÉËõ·ÅÇøÓòµÄ°ÑÊÖ³ß´ç³£Á¿
+        // ç”¨äºè‡ªå®šä¹‰çª—ä½“å¯ç¼©æ”¾åŒºåŸŸçš„æŠŠæ‰‹å°ºå¯¸å¸¸é‡
         private const int RESIZE_HANDLE_SIZE = AppConstants.UI.ResizeHandleSize;
 
-        // ²ÎÊıless ¹¹Ôì£º¹© WinForms Éè¼ÆÆ÷Ê¹ÓÃ£¨²»ÒªÔÚ´Ë´¦½øĞĞ·şÎñ°ó¶¨£©
+        // å‚æ•°less æ„é€ ï¼šä¾› WinForms è®¾è®¡å™¨ä½¿ç”¨ï¼ˆä¸è¦åœ¨æ­¤å¤„è¿›è¡ŒæœåŠ¡ç»‘å®šï¼‰
         public MainForm()
         {
             _isDesignMode = true;
-            // ×¢²á±àÂëÌá¹©ÕßÒÔÖ§³Ö¸ü¶à±àÂë£¨Èç GBK£©
+            // æ³¨å†Œç¼–ç æä¾›è€…ä»¥æ”¯æŒæ›´å¤šç¼–ç ï¼ˆå¦‚ GBKï¼‰
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             InitializeComponent();
             UIHelper.InitializeFonts(this.Font);
         }
 
-        // ¹¹Ôìº¯Êı£ºÍ¨¹ı DI ×¢ÈëÒÀÀµ
+        // æ„é€ å‡½æ•°ï¼šé€šè¿‡ DI æ³¨å…¥ä¾èµ–
         public MainForm(IMainFormCoordinator coordinator, IOptionsMonitor<AppConfig> optionsMonitor, ILogger<MainForm>? logger = null)
             : this()
         {
-            // ÔÚ DI ¹¹ÔìÆ÷ÖĞ¸²¸ÇÉè¼ÆÊ±ÉèÖÃ
+            // åœ¨ DI æ„é€ å™¨ä¸­è¦†ç›–è®¾è®¡æ—¶è®¾ç½®
             _isDesignMode = false;
             _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
             _optionsMonitor = optionsMonitor ?? throw new ArgumentNullException(nameof(optionsMonitor));
@@ -53,12 +60,12 @@ namespace TestTool
             _optionsChangeToken = _optionsMonitor.OnChange(OnAppConfigChanged);
         }
 
-        // ÅäÖÃ±ä¸ü»Øµ÷£ººÏ²¢À´×Ô appsettings µÄ¸üĞÂ²¢Ë¢ĞÂ UI
+        // é…ç½®å˜æ›´å›è°ƒï¼šåˆå¹¶æ¥è‡ª appsettings çš„æ›´æ–°å¹¶åˆ·æ–° UI
         private void OnAppConfigChanged(AppConfig newConfig)
         {
             try
             {
-                // ½ö¸üĞÂÔÊĞíÓÉ appsettings ¿ØÖÆµÄ×Ö¶Î£¨²»¸²¸ÇÓÃ»§ÒÑ±£´æµÄÑ¡Ôñ£©
+                // ä»…æ›´æ–°å…è®¸ç”± appsettings æ§åˆ¶çš„å­—æ®µï¼ˆä¸è¦†ç›–ç”¨æˆ·å·²ä¿å­˜çš„é€‰æ‹©ï¼‰
                 if (_appConfig == null)
                 {
                     _appConfig = newConfig;
@@ -66,7 +73,7 @@ namespace TestTool
                 else
                 {
                     _appConfig.DeviceName = newConfig.DeviceName ?? _appConfig.DeviceName;
-                    // Èç¹ûÓÃ»§Î´Ñ¡Ôñ¶Ë¿Ú£¬ÔòÊ¹ÓÃÅäÖÃÖĞµÄ¶Ë¿Ú
+                    // å¦‚æœç”¨æˆ·æœªé€‰æ‹©ç«¯å£ï¼Œåˆ™ä½¿ç”¨é…ç½®ä¸­çš„ç«¯å£
                     if (string.IsNullOrWhiteSpace(_appConfig.SelectedPort))
                     {
                         _appConfig.SelectedPort = newConfig.SelectedPort ?? _appConfig.SelectedPort;
@@ -74,7 +81,7 @@ namespace TestTool
                     _appConfig.ConnectionSettings = (newConfig.ConnectionSettings ?? _appConfig.ConnectionSettings).NormalizeWithDefaults();
                 }
 
-                // ÔÚ UI Ïß³Ì¸üĞÂÏÔÊ¾£¨Èç¹ûĞèÒª£©
+                // åœ¨ UI çº¿ç¨‹æ›´æ–°æ˜¾ç¤ºï¼ˆå¦‚æœéœ€è¦ï¼‰
                 if (InvokeRequired)
                 {
                     BeginInvoke(new Action(UpdateUI));
@@ -90,11 +97,11 @@ namespace TestTool
             }
         }
 
-        // ´°Ìå¼ÓÔØÊÂ¼ş£ºÒì²½¼ÓÔØÅäÖÃ²¢³õÊ¼»¯Éè±¸¿ØÖÆÆ÷ÓëÊÂ¼ş¶©ÔÄ
+        // çª—ä½“åŠ è½½äº‹ä»¶ï¼šå¼‚æ­¥åŠ è½½é…ç½®å¹¶åˆå§‹åŒ–è®¾å¤‡æ§åˆ¶å™¨ä¸äº‹ä»¶è®¢é˜…
         private async void MainForm_Load(object? sender, EventArgs e)
         {
             if (_isDesignMode)
-                return; // ÔÚÉè¼ÆÄ£Ê½ÏÂ²»Ö´ĞĞÔËĞĞÊ±³õÊ¼»¯
+                return; // åœ¨è®¾è®¡æ¨¡å¼ä¸‹ä¸æ‰§è¡Œè¿è¡Œæ—¶åˆå§‹åŒ–
 
             try
             {
@@ -106,7 +113,7 @@ namespace TestTool
                 _coordinator.DataSent += OnSerialDataSent;
                 _coordinator.DeviceStatusChanged += OnDeviceStatusChanged;
 
-                // ¸ù¾İ³õÊ¼ÅäÖÃ¸üĞÂ½çÃæ¿Ø¼ş×´Ì¬
+                // æ ¹æ®åˆå§‹é…ç½®æ›´æ–°ç•Œé¢æ§ä»¶çŠ¶æ€
                 UpdateUI();
             }
             catch (Exception ex)
@@ -115,7 +122,7 @@ namespace TestTool
             }
         }
 
-        // ´¦Àí´®¿Ú·¢ËÍÊÂ¼ş£º×ª·¢µ½¼àÊÓÆ÷ÏÔÊ¾·¢ËÍ¼ÇÂ¼
+        // å¤„ç†ä¸²å£å‘é€äº‹ä»¶ï¼šè½¬å‘åˆ°ç›‘è§†å™¨æ˜¾ç¤ºå‘é€è®°å½•
         private void OnSerialDataSent(object? sender, DataSentEventArgs e)
         {
             if (_serialMonitorForm == null || _serialMonitorForm.IsDisposed || !_serialMonitorForm.Visible)
@@ -123,14 +130,14 @@ namespace TestTool
                 return;
             }
 
-            // ÔÚ¼àÊÓÆ÷ÖĞÒÔ·¢ËÍÑùÊ½×·¼ÓÎÄ±¾
+            // åœ¨ç›‘è§†å™¨ä¸­ä»¥å‘é€æ ·å¼è¿½åŠ æ–‡æœ¬
             _serialMonitorForm.AppendSent(e.Command);
         }
 
-        // Á¬½Ó°´Å¥µã»÷£º¸ù¾İµ±Ç°Á¬½Ó×´Ì¬Ö´ĞĞÁ¬½Ó»ò¶Ï¿ª
+        // è¿æ¥æŒ‰é’®ç‚¹å‡»ï¼šæ ¹æ®å½“å‰è¿æ¥çŠ¶æ€æ‰§è¡Œè¿æ¥æˆ–æ–­å¼€
         private async void btnConnect_Click(object? sender, EventArgs e)
         {
-            // ·ÀÖ¹ÖØ¸´µã»÷µ¼ÖÂ²¢·¢²Ù×÷
+            // é˜²æ­¢é‡å¤ç‚¹å‡»å¯¼è‡´å¹¶å‘æ“ä½œ
             if (!btnConnect.Enabled)
             {
                 return;
@@ -142,7 +149,7 @@ namespace TestTool
                 return;
             }
 
-            if (string.IsNullOrEmpty(_appConfig.SelectedPort) || _appConfig.SelectedPort == "ÎŞ¿ÉÓÃ´®¿Ú")
+            if (string.IsNullOrEmpty(_appConfig.SelectedPort) || _appConfig.SelectedPort == "æ— å¯ç”¨ä¸²å£")
             {
                 UIHelper.SetStatusLabel(lblStatus, ConnectionState.Error, _appConfig.DeviceName, UIConstants.StatusMessages.PleaseSelectPort);
                 return;
@@ -155,13 +162,18 @@ namespace TestTool
             {
                 await _coordinator.ConnectAsync();
             }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error connecting to port {Port}", _appConfig.SelectedPort);
+                UIHelper.SetStatusLabel(lblStatus, ConnectionState.Error, _appConfig.DeviceName, $"è¿æ¥å¤±è´¥: {ex.Message}");
+            }
             finally
             {
                 btnConnect.Enabled = true;
             }
         }
 
-        // ´ÓÉèÖÃ½çÃæÇĞ»»¼àÊÓÆ÷ÏÔÊ¾£¨È·±£µ¥Àı£©
+        // ä»è®¾ç½®ç•Œé¢åˆ‡æ¢ç›‘è§†å™¨æ˜¾ç¤ºï¼ˆç¡®ä¿å•ä¾‹ï¼‰
         private void ToggleMonitorFromSettings()
         {
             if (_serialMonitorForm != null && !_serialMonitorForm.IsDisposed && _serialMonitorForm.Visible)
@@ -174,45 +186,91 @@ namespace TestTool
             _serialMonitorForm!.Show(this);
         }
 
-        // ´ò¿ªµçÔ´°´Å¥´¦Àí£ºÎ¯ÍĞ¸øÉè±¸¿ØÖÆÆ÷
+        // æ‰“å¼€ç”µæºæŒ‰é’®å¤„ç†ï¼šå§”æ‰˜ç»™è®¾å¤‡æ§åˆ¶å™¨
         private async void btnOn_Click(object? sender, EventArgs e)
         {
             await _coordinator.TurnOnAsync();
         }
 
-        // ¹Ø±ÕµçÔ´°´Å¥´¦Àí£ºÎ¯ÍĞ¸øÉè±¸¿ØÖÆÆ÷
+        // å…³é—­ç”µæºæŒ‰é’®å¤„ç†ï¼šå§”æ‰˜ç»™è®¾å¤‡æ§åˆ¶å™¨
         private async void btnOff_Click(object? sender, EventArgs e)
         {
             await _coordinator.TurnOffAsync();
         }
 
-        // ²Ëµ¥ÉèÖÃµã»÷£ºµ¯³öÉèÖÃ´°Ìå²¢´¦Àí½á¹û
-        private async void menuSettings_Click(object? sender, EventArgs e)
+        // èœå•è®¾ç½®ç‚¹å‡»ï¼šæ”¹ä¸ºæ— æ¨¡å¼å¼¹çª—ï¼Œä¸»çª—å£å¯æ‹–åŠ¨/ç¼©æ”¾
+        private void menuSettings_Click(object? sender, EventArgs e)
         {
-            using (var settingsForm = new SettingsForm(_appConfig.SelectedPort, _appConfig.IsPortLocked, _appConfig.DeviceName, _serialMonitorForm?.Visible == true))
+            if (_settingsForm == null || _settingsForm.IsDisposed)
             {
-                // µã»÷ÉèÖÃÖĞÇĞ»»´òÓ¡Ê±µ÷ÓÃ
-                settingsForm.ToggleMonitorRequested += (_, _) => ToggleMonitorFromSettings();
+                int currentBaudRate = _appConfig.ConnectionSettings?.BaudRate ?? 115200;
+                _settingsForm = new SettingsForm(_appConfig.SelectedPort, currentBaudRate, _appConfig.IsPortLocked, _appConfig.DeviceName, _serialMonitorForm?.Visible == true);
 
-                if (settingsForm.ShowDialog() == DialogResult.OK)
+                _settingsToggleHandler = (_, _) => ToggleMonitorFromSettings();
+                _settingsConfirmedHandler = async (_, _) => await ApplySettingsFromDialogAsync();
+                _settingsClosedHandler = (_, _) =>
                 {
-                    // ±£´æÓÃ»§¸üĞÂµÄÅäÖÃ
-                    _appConfig.SelectedPort = settingsForm.SelectedPort;
-                    _appConfig.IsPortLocked = settingsForm.IsPortLocked;
+                    DetachSettingsFormEvents();
+                    _settingsForm = null;
+                };
 
-                    try
-                    {
-                        await _coordinator.SaveConfigAsync();
-                    }
-                    catch
-                    {
-                        // ºöÂÔ±£´æ´íÎó£¬²»×èÈû UI
-                    }
+                _settingsForm.ToggleMonitorRequested += _settingsToggleHandler;
+                _settingsForm.SettingsConfirmed += _settingsConfirmedHandler;
+                _settingsForm.FormClosed += _settingsClosedHandler;
+            }
+
+            _settingsForm.Show(this);
+            _settingsForm.BringToFront();
+        }
+
+        // åº”ç”¨è®¾ç½®çª—å£ä¸­çš„é€‰æ‹©å¹¶ä¿å­˜
+        private async Task ApplySettingsFromDialogAsync()
+        {
+            if (_settingsForm == null)
+            {
+                return;
+            }
+
+            var ok = _coordinator.TryUpdateConnectionConfig(_settingsForm.SelectedPort, _settingsForm.SelectedBaudRate, _settingsForm.IsPortLocked);
+            if (!ok)
+            {
+                UIHelper.SetStatusLabel(lblStatus, ConnectionState.Error, _appConfig.DeviceName, "é…ç½®æ— æ•ˆ");
+                return;
+            }
+
+            try
+            {
+                await _coordinator.SaveConfigAsync();
+            }
+            catch
+            {
+                // å¿½ç•¥ä¿å­˜é”™è¯¯ï¼Œä¸é˜»å¡ UI
+            }
+        }
+
+        private void DetachSettingsFormEvents()
+        {
+            if (_settingsForm != null)
+            {
+                if (_settingsToggleHandler != null)
+                {
+                    _settingsForm.ToggleMonitorRequested -= _settingsToggleHandler;
+                    _settingsToggleHandler = null;
+                }
+                if (_settingsConfirmedHandler != null)
+                {
+                    _settingsForm.SettingsConfirmed -= _settingsConfirmedHandler;
+                    _settingsConfirmedHandler = null;
+                }
+                if (_settingsClosedHandler != null)
+                {
+                    _settingsForm.FormClosed -= _settingsClosedHandler;
+                    _settingsClosedHandler = null;
                 }
             }
         }
 
-        // Á¬½Ó×´Ì¬±ä»¯´¦Àí£ºÔÚ UI Ïß³Ì¸üĞÂ×´Ì¬±êÇ©ºÍ°´Å¥×´Ì¬
+        // è¿æ¥çŠ¶æ€å˜åŒ–å¤„ç†ï¼šåœ¨ UI çº¿ç¨‹æ›´æ–°çŠ¶æ€æ ‡ç­¾å’ŒæŒ‰é’®çŠ¶æ€
         private void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs e)
         {
             if (InvokeRequired)
@@ -224,7 +282,7 @@ namespace TestTool
             UIHelper.SetStatusLabel(lblStatus, e.NewState, _appConfig.DeviceName, e.Message);
             UIHelper.UpdateConnectButton(btnConnect, e.NewState == ConnectionState.Connected);
 
-            // ¸ù¾İÁ¬½Ó×´Ì¬Æô/½ûÓÃµçÔ´°´Å¥
+            // æ ¹æ®è¿æ¥çŠ¶æ€å¯/ç¦ç”¨ç”µæºæŒ‰é’®
             if (e.NewState == ConnectionState.Connected)
             {
                 btnOn.Enabled = true;
@@ -239,7 +297,7 @@ namespace TestTool
             }
         }
 
-        // Éè±¸×´Ì¬±ä»¯´¦Àí£º¸üĞÂµçÔ´°´Å¥Íâ¹ÛÒÔ·´Ó³µ±Ç°µçÔ´×´Ì¬
+        // è®¾å¤‡çŠ¶æ€å˜åŒ–å¤„ç†ï¼šæ›´æ–°ç”µæºæŒ‰é’®å¤–è§‚ä»¥åæ˜ å½“å‰ç”µæºçŠ¶æ€
         private void OnDeviceStatusChanged(object? sender, DeviceStatusChangedEventArgs e)
         {
             if (InvokeRequired)
@@ -265,7 +323,7 @@ namespace TestTool
             }
         }
 
-        // ´®¿Ú½ÓÊÕÊı¾İ´¦Àí£º½«ÊÕµ½µÄÊı¾İ×·¼Óµ½¼àÊÓÆ÷
+        // ä¸²å£æ¥æ”¶æ•°æ®å¤„ç†ï¼šå°†æ”¶åˆ°çš„æ•°æ®è¿½åŠ åˆ°ç›‘è§†å™¨
         private void OnSerialDataReceived(object? sender, DataReceivedEventArgs e)
         {
             if (_serialMonitorForm == null || _serialMonitorForm.IsDisposed || !_serialMonitorForm.Visible)
@@ -273,29 +331,29 @@ namespace TestTool
                 return;
             }
 
-            // Ê¹ÓÃ¼æÈİµÄ AppendLine£¨Ó³ÉäÎª½ÓÊÕÏÔÊ¾£©
+            // ä½¿ç”¨å…¼å®¹çš„ AppendLineï¼ˆæ˜ å°„ä¸ºæ¥æ”¶æ˜¾ç¤ºï¼‰
             _serialMonitorForm.AppendLine(e.Data);
         }
 
-        // È·±£¼àÊÓÆ÷´°¿Ú´æÔÚ²¢ÉèÖÃ±êÌâ
+        // ç¡®ä¿ç›‘è§†å™¨çª—å£å­˜åœ¨å¹¶è®¾ç½®æ ‡é¢˜
         private void EnsureMonitorForm()
         {
             if (_serialMonitorForm == null || _serialMonitorForm.IsDisposed)
             {
                 var title = string.IsNullOrWhiteSpace(_appConfig?.SelectedPort)
-                    ? "´®¿Ú´òÓ¡"
-                    : $"{_appConfig.DeviceName} ´òÓ¡ ({_appConfig.SelectedPort})";
+                    ? "ä¸²å£æ‰“å°"
+                    : $"{_appConfig.DeviceName} æ‰“å° ({_appConfig.SelectedPort})";
                 _serialMonitorForm = new SerialMonitorForm(title);
             }
             else
             {
                 _serialMonitorForm.Text = string.IsNullOrWhiteSpace(_appConfig?.SelectedPort)
-                    ? "´®¿Ú´òÓ¡"
-                    : $"{_appConfig.DeviceName} ´òÓ¡ ({_appConfig.SelectedPort})";
+                    ? "ä¸²å£æ‰“å°"
+                    : $"{_appConfig.DeviceName} æ‰“å° ({_appConfig.SelectedPort})";
             }
         }
 
-        // ¸üĞÂ UI ³õÊ¼×´Ì¬£ºÉèÖÃ×´Ì¬±êÇ©ºÍ½ûÓÃµçÔ´°´Å¥
+        // æ›´æ–° UI åˆå§‹çŠ¶æ€ï¼šè®¾ç½®çŠ¶æ€æ ‡ç­¾å’Œç¦ç”¨ç”µæºæŒ‰é’®
         private void UpdateUI()
         {
             UIHelper.SetStatusLabel(lblStatus, ConnectionState.Disconnected, _appConfig.DeviceName, UIConstants.StatusMessages.Disconnected);
@@ -303,7 +361,7 @@ namespace TestTool
             UIHelper.SetButtonDisabled(btnOff);
         }
 
-        // ´°¿Ú±ß¿òÍÏ¶¯Ö§³Ö£º´¦Àí WM_NCHITTEST ²¢Îª±ß½Ç·µ»ØÏàÓ¦ HT Öµ
+        // çª—å£è¾¹æ¡†æ‹–åŠ¨æ”¯æŒï¼šå¤„ç† WM_NCHITTEST å¹¶ä¸ºè¾¹è§’è¿”å›ç›¸åº” HT å€¼
         protected override void WndProc(ref Message m)
         {
             const int WM_NCHITTEST = 0x0084;
@@ -344,7 +402,7 @@ namespace TestTool
             }
         }
 
-        // ´°¿Ú¹Ø±ÕÊ±ÊÍ·Å×ÊÔ´ÓëÈ¡Ïû¶©ÔÄ£¬·ÀÖ¹»Øµ÷¼ÌĞø´¥·¢
+        // çª—å£å…³é—­æ—¶é‡Šæ”¾èµ„æºä¸å–æ¶ˆè®¢é˜…ï¼Œé˜²æ­¢å›è°ƒç»§ç»­è§¦å‘
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             try
@@ -354,12 +412,18 @@ namespace TestTool
                 _coordinator.DataSent -= OnSerialDataSent;
                 _coordinator.DeviceStatusChanged -= OnDeviceStatusChanged;
                 _optionsChangeToken?.Dispose();
+                if (_settingsForm != null)
+                {
+                    DetachSettingsFormEvents();
+                    _settingsForm.Dispose();
+                    _settingsForm = null;
+                }
                 _coordinator.Dispose();
                 UIHelper.DisposeFonts();
             }
             catch
             {
-                // ºöÂÔÊÍ·Å´íÎó£¬È·±£´°¿ÚÄÜ¹Ø±Õ
+                // å¿½ç•¥é‡Šæ”¾é”™è¯¯ï¼Œç¡®ä¿çª—å£èƒ½å…³é—­
             }
 
             base.OnFormClosing(e);

@@ -7,7 +7,7 @@ using TestTool.Business.Models;
 namespace TestTool.Business.Services
 {
     /// <summary>
-    /// Ö÷´°ÌåĞ­µ÷Æ÷£º¼¯ÖĞ´¦ÀíÅäÖÃ¼ÓÔØ¡¢Éè±¸¿ØÖÆÆ÷³õÊ¼»¯¡¢Á¬½Ó/¶Ï¿ª¼°ÊÂ¼ş×ª·¢
+    /// ä¸»çª—ä½“åè°ƒå™¨ï¼šé›†ä¸­å¤„ç†é…ç½®åŠ è½½ã€è®¾å¤‡æ§åˆ¶å™¨åˆå§‹åŒ–ã€è¿æ¥/æ–­å¼€åŠäº‹ä»¶è½¬å‘
     /// </summary>
     public interface IMainFormCoordinator : IDisposable
     {
@@ -23,10 +23,11 @@ namespace TestTool.Business.Services
         Task<bool> TurnOnAsync();
         Task<bool> TurnOffAsync();
         Task SaveConfigAsync();
+        bool TryUpdateConnectionConfig(string port, int baudRate, bool isLocked);
     }
 
     /// <summary>
-    /// Ö÷´°ÌåĞ­µ÷Æ÷ÊµÏÖ£º·â×°´®¿Ú·şÎñÓëÉè±¸¿ØÖÆÆ÷½»»¥£¬Ìá¹© UI ËùĞèµÄÍ³Ò»½Ó¿Ú
+    /// ä¸»çª—ä½“åè°ƒå™¨å®ç°ï¼šå°è£…ä¸²å£æœåŠ¡ä¸è®¾å¤‡æ§åˆ¶å™¨äº¤äº’ï¼Œæä¾› UI æ‰€éœ€çš„ç»Ÿä¸€æ¥å£
     /// </summary>
     public class MainFormCoordinator : IMainFormCoordinator
     {
@@ -62,15 +63,15 @@ namespace TestTool.Business.Services
         {
             if (_initialized) return;
 
-            // ¼ÓÔØ³Ö¾Ã»¯ÅäÖÃ
+            // åŠ è½½æŒä¹…åŒ–é…ç½®
             _appConfig = await _configRepository.LoadAsync().ConfigureAwait(false);
 
-            // ´´½¨²¢³õÊ¼»¯Éè±¸¿ØÖÆÆ÷
+            // åˆ›å»ºå¹¶åˆå§‹åŒ–è®¾å¤‡æ§åˆ¶å™¨
             _deviceController = _deviceControllerFactory.Create();
             await _deviceController.InitializeAsync(_serialPortService).ConfigureAwait(false);
             _deviceController.DeviceName = _appConfig.DeviceName;
 
-            // ¶©ÔÄ´®¿ÚÓëÉè±¸ÊÂ¼ş£¬¹© UI Ê¹ÓÃ
+            // è®¢é˜…ä¸²å£ä¸è®¾å¤‡äº‹ä»¶ï¼Œä¾› UI ä½¿ç”¨
             _serialPortService.ConnectionStateChanged += OnConnectionStateChanged;
             _serialPortService.DataReceived += OnDataReceived;
             _serialPortService.DataSent += OnDataSent;
@@ -89,7 +90,7 @@ namespace TestTool.Business.Services
                 return false;
             }
 
-            // ×é×°Á¬½ÓÅäÖÃ£¨°üº¬´®¿Ú²ÎÊıºÍ±àÂë¡¢³¬Ê±£©
+            // ç»„è£…è¿æ¥é…ç½®ï¼ˆåŒ…å«ä¸²å£å‚æ•°å’Œç¼–ç ã€è¶…æ—¶ï¼‰
             var settings = (_appConfig.ConnectionSettings ?? new ConnectionConfig()).NormalizeWithDefaults();
             var config = new ConnectionConfig(_appConfig.SelectedPort)
             {
@@ -132,6 +133,17 @@ namespace TestTool.Business.Services
         {
             EnsureInitialized();
             await _configRepository.SaveAsync(_appConfig).ConfigureAwait(false);
+        }
+
+        public bool TryUpdateConnectionConfig(string port, int baudRate, bool isLocked)
+        {
+            EnsureInitialized();
+            if (string.IsNullOrWhiteSpace(port)) return false;
+            _appConfig.SelectedPort = port;
+            _appConfig.IsPortLocked = isLocked;
+            _appConfig.ConnectionSettings ??= new ConnectionConfig();
+            _appConfig.ConnectionSettings.BaudRate = baudRate;
+            return _appConfig.ConnectionSettings.IsValid();
         }
 
         private void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs e)

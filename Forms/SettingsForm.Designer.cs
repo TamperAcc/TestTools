@@ -44,7 +44,7 @@ namespace TestTool
             // lblPortSelect
             // 
             lblPortSelect.AutoSize = true;
-            lblPortSelect.Location = new Point(20, 35);
+            lblPortSelect.Location = new Point(20, 38);
             lblPortSelect.Name = "lblPortSelect";
             lblPortSelect.Size = new Size(69, 20);
             lblPortSelect.TabIndex = 0;
@@ -52,51 +52,47 @@ namespace TestTool
             // 
             // cmbSettingsPort
             // 
-            cmbSettingsPort.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             cmbSettingsPort.DropDownStyle = ComboBoxStyle.DropDownList;
             cmbSettingsPort.FormattingEnabled = true;
-            cmbSettingsPort.Location = new Point(95, 32);
+            cmbSettingsPort.Location = new Point(95, 34);
             cmbSettingsPort.Name = "cmbSettingsPort";
-            cmbSettingsPort.Size = new Size(150, 28);
+            cmbSettingsPort.Size = new Size(110, 28);
             cmbSettingsPort.TabIndex = 1;
             // 
             // lblBaudRate
             // 
             lblBaudRate.AutoSize = true;
-            lblBaudRate.Location = new Point(20, 75);
+            lblBaudRate.Location = new Point(220, 38);
             lblBaudRate.Name = "lblBaudRate";
             lblBaudRate.Size = new Size(69, 20);
-            lblBaudRate.TabIndex = 7;
+            lblBaudRate.TabIndex = 2;
             lblBaudRate.Text = "波特率：";
             // 
             // cmbBaudRate
             // 
-            cmbBaudRate.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             cmbBaudRate.DropDownStyle = ComboBoxStyle.DropDownList;
             cmbBaudRate.FormattingEnabled = true;
-            cmbBaudRate.Location = new Point(95, 72);
+            cmbBaudRate.Location = new Point(295, 34);
             cmbBaudRate.Name = "cmbBaudRate";
-            cmbBaudRate.Size = new Size(150, 28);
-            cmbBaudRate.TabIndex = 8;
+            cmbBaudRate.Size = new Size(110, 28);
+            cmbBaudRate.TabIndex = 3;
             // 
             // btnLockPort
             // 
-            btnLockPort.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnLockPort.Location = new Point(260, 30);
+            btnLockPort.Location = new Point(520, 32);
             btnLockPort.Name = "btnLockPort";
-            btnLockPort.Size = new Size(80, 32);
-            btnLockPort.TabIndex = 2;
+            btnLockPort.Size = new Size(90, 32);
+            btnLockPort.TabIndex = 5;
             btnLockPort.Text = "未锁定";
             btnLockPort.UseVisualStyleBackColor = true;
             btnLockPort.Click += btnLockPort_Click;
             // 
             // btnMonitor
             // 
-            btnMonitor.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnMonitor.Location = new Point(260, 70);
+            btnMonitor.Location = new Point(420, 32);
             btnMonitor.Name = "btnMonitor";
-            btnMonitor.Size = new Size(80, 32);
-            btnMonitor.TabIndex = 6;
+            btnMonitor.Size = new Size(90, 32);
+            btnMonitor.TabIndex = 4;
             btnMonitor.Text = "打开打印";
             btnMonitor.UseVisualStyleBackColor = true;
             btnMonitor.Click += btnMonitor_Click;
@@ -104,7 +100,7 @@ namespace TestTool
             // btnOK
             // 
             btnOK.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnOK.Location = new Point(100, 200);
+            btnOK.Location = new Point(460, 150);
             btnOK.Name = "btnOK";
             btnOK.Size = new Size(90, 35);
             btnOK.TabIndex = 3;
@@ -115,7 +111,7 @@ namespace TestTool
             // btnCancel
             // 
             btnCancel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnCancel.Location = new Point(210, 200);
+            btnCancel.Location = new Point(565, 150);
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new Size(90, 35);
             btnCancel.TabIndex = 4;
@@ -125,7 +121,7 @@ namespace TestTool
             // 
             // groupBox1
             // 
-            groupBox1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            groupBox1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             groupBox1.Controls.Add(btnMonitor);
             groupBox1.Controls.Add(lblMessage);
             groupBox1.Controls.Add(lblPortSelect);
@@ -135,7 +131,7 @@ namespace TestTool
             groupBox1.Controls.Add(btnLockPort);
             groupBox1.Location = new Point(20, 20);
             groupBox1.Name = "groupBox1";
-            groupBox1.Size = new Size(360, 160);
+            groupBox1.Size = new Size(640, 100);
             groupBox1.TabIndex = 5;
             groupBox1.TabStop = false;
             groupBox1.Text = "连接设置";
@@ -144,7 +140,7 @@ namespace TestTool
             // 
             lblMessage.AutoSize = true;
             lblMessage.ForeColor = SystemColors.ControlDarkDark;
-            lblMessage.Location = new Point(20, 120);
+            lblMessage.Location = new Point(20, 70);
             lblMessage.Name = "lblMessage";
             lblMessage.Size = new Size(0, 20);
             lblMessage.TabIndex = 3;
@@ -153,14 +149,14 @@ namespace TestTool
             // 
             AutoScaleDimensions = new SizeF(9F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(400, 260);
+            ClientSize = new Size(680, 200);
             Controls.Add(groupBox1);
             Controls.Add(btnCancel);
             Controls.Add(btnOK);
             FormBorderStyle = FormBorderStyle.Sizable;
             MaximizeBox = true;
             MinimizeBox = true;
-            MinimumSize = new Size(400, 260);
+            MinimumSize = new Size(680, 200);
             Name = "SettingsForm";
             StartPosition = FormStartPosition.CenterParent;
             Text = "设置";

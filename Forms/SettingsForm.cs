@@ -3,120 +3,162 @@ using System.IO.Ports;
 using System.Drawing;
 using System.Windows.Forms;
 using TestTool.Infrastructure.Constants;
+using TestTool.Business.Models;
 
 namespace TestTool
 {
     /// <summary>
-    /// ÉèÖÃ¶Ô»°¿ò£ºÑ¡Ôñ´®¿Ú¡¢Ëø¶¨¶Ë¿Ú£¬²¢´ò¿ª/¹Ø±Õ´òÓ¡¼àÊÓÆ÷
+    /// è®¾ç½®å¯¹è¯æ¡†ï¼šé€‰æ‹©ä¸²å£ã€æ³¢ç‰¹ç‡ã€é”å®šç«¯å£ï¼Œå¹¶æ‰“å¼€/å…³é—­æ‰“å°ç›‘è§†å™¨
     /// </summary>
     public partial class SettingsForm : Form
     {
-        // ÓÃ»§Ñ¡ÔñµÄ´®¿ÚºÅ
+        // ç”¨æˆ·é€‰æ‹©çš„ä¸²å£å·
         public string SelectedPort { get; private set; } = string.Empty;
-        // ´®¿ÚÊÇ·ñ±»Ëø¶¨ÒÔ·ÀĞŞ¸Ä
+        // ç”¨æˆ·é€‰æ‹©çš„æ³¢ç‰¹ç‡
+        public int SelectedBaudRate { get; private set; } = 115200;
+        // ä¸²å£æ˜¯å¦è¢«é”å®šä»¥é˜²ä¿®æ”¹
         public bool IsPortLocked { get; private set; }
-        // Éè±¸Ãû³ÆÏÔÊ¾ÎÄ±¾
+        // è®¾å¤‡åç§°æ˜¾ç¤ºæ–‡æœ¬
         private string deviceName;
-        // µ±Ç°¼àÊÓÆ÷ÊÇ·ñÒÑ´ò¿ª
+        // å½“å‰ç›‘è§†å™¨æ˜¯å¦å·²æ‰“å¼€
         private bool _isMonitorOpen;
 
-        // ÉèÖÃ½çÃæÖĞÇĞ»»´®¿Ú´òÓ¡¼àÊÓÆ÷µÄÊÂ¼ş
+        // è®¾ç½®ç•Œé¢ä¸­åˆ‡æ¢ä¸²å£æ‰“å°ç›‘è§†å™¨çš„äº‹ä»¶
         public event EventHandler? ToggleMonitorRequested;
+        // è®¾ç½®å·²ç¡®è®¤äº‹ä»¶ï¼ˆOK æŒ‰é’®ç‚¹å‡»æˆ–é”å®šåˆ‡æ¢æ—¶è§¦å‘ï¼‰
+        public event EventHandler? SettingsConfirmed;
 
-        // ²ÎÊıless ¹¹Ôìº¯Êı£º¹©Éè¼ÆÆ÷Ê¹ÓÃ£¬Ê¹ÓÃÄ¬ÈÏÖµÎ¯ÍĞ¸øÖ÷¹¹Ôìº¯Êı
-        public SettingsForm() : this(string.Empty, false, AppConstants.Defaults.DeviceName, false)
+        // å‚æ•°less æ„é€ å‡½æ•°ï¼šä¾›è®¾è®¡å™¨ä½¿ç”¨ï¼Œä½¿ç”¨é»˜è®¤å€¼å§”æ‰˜ç»™ä¸»æ„é€ å‡½æ•°
+        public SettingsForm() : this(string.Empty, 115200, false, AppConstants.Defaults.DeviceName, false)
         {
         }
 
-        // ¹¹Ôìº¯Êı£º½ÓÊÜµ±Ç°ÅäÖÃ×÷Îª³õÊ¼ÏÔÊ¾Öµ
-        public SettingsForm(string currentPort, bool isLocked, string devName, bool isMonitorOpen)
+        // æ„é€ å‡½æ•°ï¼šæ¥å—å½“å‰é…ç½®ä½œä¸ºåˆå§‹æ˜¾ç¤ºå€¼
+        public SettingsForm(string currentPort, int currentBaudRate, bool isLocked, string devName, bool isMonitorOpen)
         {
             InitializeComponent();
             SelectedPort = currentPort ?? string.Empty;
+            SelectedBaudRate = currentBaudRate > 0 ? currentBaudRate : 115200;
             IsPortLocked = isLocked;
             deviceName = devName ?? string.Empty;
             _isMonitorOpen = isMonitorOpen;
         }
 
-        // ´°Ìå¼ÓÔØÊ±³õÊ¼»¯¿Ø¼şÏÔÊ¾ÓëÊÂ¼ş
+        // çª—ä½“åŠ è½½æ—¶åˆå§‹åŒ–æ§ä»¶æ˜¾ç¤ºä¸äº‹ä»¶
         private void SettingsForm_Load(object? sender, EventArgs e)
         {
-            // ÉèÖÃ´°¿Ú±êÌâÎªÉè±¸Ãû³Æ + ÉèÖÃ
-            this.Text = $"{deviceName}ÉèÖÃ";
+            // è®¾ç½®çª—å£æ ‡é¢˜
+            this.Text = "ä¸²å£è®¾ç½®";
 
-            // ¸üĞÂ·Ö×é±êÌâÕ¹Ê¾Éè±¸Ãû
-            groupBox1.Text = $"{deviceName}´®¿ÚÉèÖÃ";
+            // æ›´æ–°åˆ†ç»„æ ‡é¢˜å±•ç¤ºè®¾å¤‡å
+            groupBox1.Text = $"{deviceName} è¿æ¥è®¾ç½®";
 
-            // ¼ÓÔØ²¢ÏÔÊ¾¿ÉÓÃ´®¿Ú
+            // åŠ è½½å¹¶æ˜¾ç¤ºå¯ç”¨ä¸²å£
             LoadAvailablePorts();
+            // åŠ è½½æ³¢ç‰¹ç‡åˆ—è¡¨
+            LoadBaudRates();
 
-            // ³¢ÊÔ»Ö¸´ÉÏ´ÎÑ¡Ôñ
+            // å°è¯•æ¢å¤ä¸Šæ¬¡é€‰æ‹©
             if (!string.IsNullOrEmpty(SelectedPort) && cmbSettingsPort.Items.Contains(SelectedPort))
-            {
                 cmbSettingsPort.SelectedItem = SelectedPort;
-            }
             else if (cmbSettingsPort.Items.Count > 0)
-            {
                 cmbSettingsPort.SelectedIndex = 0;
-            }
 
-            // ¸ù¾İËø¶¨×´Ì¬¸üĞÂ UI
+            // å°è¯•æ¢å¤æ³¢ç‰¹ç‡é€‰æ‹©
+            if (cmbBaudRate.Items.Contains(SelectedBaudRate))
+                cmbBaudRate.SelectedItem = SelectedBaudRate;
+            else
+                cmbBaudRate.Text = SelectedBaudRate.ToString();
+
+            // æ ¹æ®é”å®šçŠ¶æ€æ›´æ–° UI
             UpdateLockButtonState();
             UpdateMonitorButtonState();
 
-            // ×¢²áÏÂÀ­Õ¹¿ªÊ±×Ô¶¯Ë¢ĞÂ´®¿ÚÁĞ±í
+            // æ³¨å†Œä¸‹æ‹‰å±•å¼€æ—¶è‡ªåŠ¨åˆ·æ–°ä¸²å£åˆ—è¡¨
             cmbSettingsPort.DropDown += cmbSettingsPort_DropDown;
         }
 
-        // ÏÂÀ­Õ¹¿ªÊ±Ë¢ĞÂ´®¿ÚÁĞ±í²¢³¢ÊÔ»Ö¸´Ñ¡Ôñ
+        // ä¸‹æ‹‰å±•å¼€æ—¶åˆ·æ–°ä¸²å£åˆ—è¡¨å¹¶å°è¯•æ¢å¤é€‰æ‹©
         private void cmbSettingsPort_DropDown(object? sender, EventArgs e)
         {
             string? currentSelection = cmbSettingsPort.SelectedItem?.ToString();
             LoadAvailablePorts();
-
-            // »Ö¸´Ñ¡Ôñ»òÄ¬ÈÏÑ¡ÖĞµÚÒ»¸ö
+            // æ¢å¤é€‰æ‹©æˆ–é»˜è®¤é€‰ä¸­ç¬¬ä¸€ä¸ª
             if (!string.IsNullOrEmpty(currentSelection) && cmbSettingsPort.Items.Contains(currentSelection))
-            {
                 cmbSettingsPort.SelectedItem = currentSelection;
-            }
             else if (cmbSettingsPort.Items.Count > 0 && cmbSettingsPort.SelectedIndex == -1)
-            {
                 cmbSettingsPort.SelectedIndex = 0;
-            }
         }
 
-        // »ñÈ¡ÏµÍ³¿ÉÓÃ´®¿Ú²¢Ìî³äÏÂÀ­ÁĞ±í
+        // è·å–ç³»ç»Ÿå¯ç”¨ä¸²å£å¹¶å¡«å……ä¸‹æ‹‰åˆ—è¡¨
         private void LoadAvailablePorts()
         {
             cmbSettingsPort.Items.Clear();
             string[] ports = SerialPort.GetPortNames();
-
             if (ports.Length > 0)
-            {
                 cmbSettingsPort.Items.AddRange(ports);
+            else
+                cmbSettingsPort.Items.Add("æ— å¯ç”¨ä¸²å£");
+        }
+
+        // åŠ è½½æ³¢ç‰¹ç‡é€‰æ‹©é¡¹
+        private void LoadBaudRates()
+        {
+            cmbBaudRate.Items.Clear();
+            int[] rates = { 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600 };
+            foreach (var rate in rates)
+                cmbBaudRate.Items.Add(rate);
+        }
+
+        // æ ¹æ®å½“å‰æ§ä»¶æ›´æ–°é€‰æ‹©ï¼ˆå¯é€‰æ˜¾ç¤ºè­¦å‘Šï¼‰ï¼ŒæˆåŠŸè¿”å› true
+        private bool TryUpdateSelections(bool showWarning = true)
+        {
+            if (cmbSettingsPort.SelectedItem == null || cmbSettingsPort.SelectedItem.ToString() == "æ— å¯ç”¨ä¸²å£")
+            {
+                if (showWarning)
+                    MessageBox.Show("è¯·é€‰æ‹©ä¸€ä¸ªä¸²å£", "æç¤º", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
+            var port = cmbSettingsPort.SelectedItem.ToString() ?? string.Empty;
+            int rate;
+            if (int.TryParse(cmbBaudRate.Text, out rate))
+            {
+                // å·²ä»æ–‡æœ¬è§£æ
+            }
+            else if (cmbBaudRate.SelectedItem != null && int.TryParse(cmbBaudRate.SelectedItem.ToString(), out rate))
+            {
+                // å·²ä»ä¸‹æ‹‰é¡¹è§£æ
             }
             else
             {
-                // µ±Ã»ÓĞ¿ÉÓÃ´®¿ÚÊ±ÏÔÊ¾Õ¼Î»Ïî
-                cmbSettingsPort.Items.Add("ÎŞ¿ÉÓÃ´®¿Ú");
+                if (showWarning)
+                    MessageBox.Show("è¯·è¾“å…¥æœ‰æ•ˆçš„æ³¢ç‰¹ç‡", "æç¤º", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
             }
+
+            SelectedPort = port;
+            SelectedBaudRate = rate;
+            return true;
         }
 
-        // Ëø¶¨°´Å¥£ºÇĞ»»Ëø¶¨×´Ì¬£¨²¢ÔÚ UI ÖĞÌåÏÖ£©
+        // é”å®šæŒ‰é’®ï¼šåˆ‡æ¢é”å®šçŠ¶æ€ï¼ˆå¹¶åœ¨ UI ä¸­ä½“ç°ï¼‰
         private void btnLockPort_Click(object? sender, EventArgs e)
         {
-            if (cmbSettingsPort.SelectedItem == null || cmbSettingsPort.SelectedItem.ToString() == "ÎŞ¿ÉÓÃ´®¿Ú")
+            if (!TryUpdateSelections())
             {
-                MessageBox.Show("ÇëÑ¡ÔñÒ»¸ö´®¿Ú", "ÌáÊ¾", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            // ÇĞ»»Ëø¶¨×´Ì¬²¢¸üĞÂ UI
+            // åˆ‡æ¢é”å®šçŠ¶æ€å¹¶æ›´æ–° UI
             IsPortLocked = !IsPortLocked;
             UpdateLockButtonState();
+
+            // é”å®šçŠ¶æ€å˜åŒ–åç«‹å³è§¦å‘ä¿å­˜äº‹ä»¶
+            SettingsConfirmed?.Invoke(this, EventArgs.Empty);
         }
 
-        // ¼àÊÓÆ÷°´Å¥£ºÍ¨Öª¸¸´°ÌåÇĞ»»¼àÊÓÆ÷ÏÔÊ¾
+        // ç›‘è§†å™¨æŒ‰é’®ï¼šé€šçŸ¥çˆ¶çª—ä½“åˆ‡æ¢ç›‘è§†å™¨æ˜¾ç¤º
         private void btnMonitor_Click(object? sender, EventArgs e)
         {
             ToggleMonitorRequested?.Invoke(this, EventArgs.Empty);
@@ -124,44 +166,47 @@ namespace TestTool
             UpdateMonitorButtonState();
         }
 
-        // ¸ù¾İËø¶¨×´Ì¬ÉèÖÃ°´Å¥ÎÄ±¾ºÍÏÂÀ­ÁĞ±í¿ÉÓÃĞÔ
+        // æ ¹æ®é”å®šçŠ¶æ€è®¾ç½®æŒ‰é’®æ–‡æœ¬å’Œä¸‹æ‹‰åˆ—è¡¨å¯ç”¨æ€§
         private void UpdateLockButtonState()
         {
             if (IsPortLocked)
             {
                 cmbSettingsPort.Enabled = false;
-                btnLockPort.Text = "ÒÑËø¶¨";
+                cmbBaudRate.Enabled = false;
+                btnLockPort.Text = "å·²é”å®š";
                 btnLockPort.BackColor = Color.LightCoral;
             }
             else
             {
                 cmbSettingsPort.Enabled = true;
-                btnLockPort.Text = "Î´Ëø¶¨";
+                cmbBaudRate.Enabled = true;
+                btnLockPort.Text = "æœªé”å®š";
                 btnLockPort.BackColor = SystemColors.Control;
             }
         }
 
-        // ¸üĞÂ¼àÊÓÆ÷°´Å¥ÎÄ±¾ÒÔ·´Ó³µ±Ç°×´Ì¬
+        // æ›´æ–°ç›‘è§†å™¨æŒ‰é’®æ–‡æœ¬ä»¥åæ˜ å½“å‰çŠ¶æ€
         private void UpdateMonitorButtonState()
         {
-            btnMonitor.Text = _isMonitorOpen ? "¹Ø±Õ´òÓ¡" : "´òÓ¡";
+            btnMonitor.Text = _isMonitorOpen ? "å…³é—­æ‰“å°" : "æ‰“å¼€æ‰“å°";
         }
 
-        // È·ÈÏ°´Å¥£º±£´æÑ¡Ôñ²¢¹Ø±Õ¶Ô»°¿ò
+        // ç¡®è®¤æŒ‰é’®ï¼šä¿å­˜é€‰æ‹©å¹¶å…³é—­å¯¹è¯æ¡†
         private void btnOK_Click(object? sender, EventArgs e)
         {
-            if (cmbSettingsPort.SelectedItem == null)
+            if (!TryUpdateSelections())
             {
-                MessageBox.Show("ÇëÑ¡ÔñÒ»¸ö´®¿Ú", "ÌáÊ¾", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            SelectedPort = cmbSettingsPort.SelectedItem.ToString() ?? string.Empty;
+            // è§¦å‘å·²ç¡®è®¤äº‹ä»¶ï¼Œä¾›å¤–éƒ¨ä¿å­˜
+            SettingsConfirmed?.Invoke(this, EventArgs.Empty);
+
             this.DialogResult = DialogResult.OK;
             this.Close();
         }
 
-        // È¡Ïû°´Å¥£º²»±£´æÖ±½Ó¹Ø±Õ
+        // å–æ¶ˆæŒ‰é’®ï¼šä¸ä¿å­˜ç›´æ¥å…³é—­
         private void btnCancel_Click(object? sender, EventArgs e)
         {
             this.DialogResult = DialogResult.Cancel;
