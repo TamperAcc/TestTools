@@ -21,70 +21,64 @@ namespace TestTool
             // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
 
-            // ÉèÖÃÈ«¾ÖÒì³£´¦Àí
+            // è®¾ç½®å…¨å±€å¼‚å¸¸å¤„ç†
             Application.ThreadException += (sender, e) =>
             {
-                MessageBox.Show($"·¢ÉúÎ´²¶»ñµÄ UI Òì³£: {e.Exception.Message}", "´íÎó", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"æ•èŽ·æœªå¤„ç†çš„ UI å¼‚å¸¸: {e.Exception.Message}", "é”™è¯¯", MessageBoxButtons.OK, MessageBoxIcon.Error);
             };
             AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
             {
                 var ex = e.ExceptionObject as Exception;
-                MessageBox.Show($"·¢ÉúÎ´²¶»ñµÄ·Ç UI Òì³£: {ex?.Message}", "ÑÏÖØ´íÎó", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"æ•èŽ·æœªå¤„ç†çš„éž UI å¼‚å¸¸: {ex?.Message}", "ä¸¥é‡é”™è¯¯", MessageBoxButtons.OK, MessageBoxIcon.Error);
             };
             TaskScheduler.UnobservedTaskException += (sender, e) =>
             {
-                e.SetObserved(); // ·ÀÖ¹³ÌÐò±ÀÀ£
-                // Êµ¼Ê³¡¾°½¨Òé¼ÇÂ¼ÈÕÖ¾
+                e.SetObserved(); // é˜²æ­¢ç¨‹åºå´©æºƒ
             };
 
             using IHost host = Host.CreateDefaultBuilder()
                 .ConfigureAppConfiguration((context, config) =>
                 {
-                    // È·±£¼ÓÔØ appsettings.json
+                    // ç¡®ä¿åŠ è½½ appsettings.json
                     config.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
                 })
                 .ConfigureServices((context, services) =>
                 {
-                    // ½« AppConfig ½Ú°ó¶¨µ½ IOptions<AppConfig>
+                    // ç»‘å®š AppConfig åˆ° IOptions<AppConfig>
                     services.AddOptions<AppConfig>()
                         .Bind(context.Configuration.GetSection("AppConfig"))
                         .ValidateDataAnnotations()
                         .ValidateOnStart();
 
-                    // ×¢²áÓ¦ÓÃ·þÎñºÍ´°ÌåÀàÐÍµ½ DI ÈÝÆ÷£¬°´½¨ÒéÑ¡ÔñÉúÃüÖÜÆÚ£º
-
-                    // SerialPortService: µ¥Àý
-                    // - ´ú±íÎïÀí´®¿Ú×ÊÔ´£¬ÐèÈ«¾ÖÎ¨Ò»¡£
-                    // - ³ÖÓÐÁ¬½Ó×´Ì¬²¢·¢²¼ÊÂ¼þ£¬UI/¿ØÖÆÆ÷Ïû·Ñ¡£
-                    // - ÐèÏß³Ì°²È«ÇÒ³¤ÉúÃüÖÜÆÚ£¬ÓÉ Host ¹ÜÀíÊÍ·Å¡£
-                    services.AddSingleton<Business.Services.ISerialPortService, Business.Services.SerialPortService>();
-                    // ´®¿ÚÊÊÅäÆ÷£ºË²Ì¬£¬±£Ö¤Ã¿´Î»ñÈ¡¶¼ÊÇÐÂÊµÀý
+                    // ä¸²å£é€‚é…å™¨ï¼šçž¬æ€ï¼Œæ¯æ¬¡èŽ·å–æ–°å®žä¾‹
                     services.AddTransient<Business.Services.ISerialPortAdapter, Business.Services.DefaultSerialPortAdapter>();
-                    // ÊÊÅäÆ÷¹¤³§£ºµ¥Àý£¬ÓÃÓÚ´´½¨²¢ÅäÖÃÊÊÅäÆ÷
+                    // é€‚é…å™¨å·¥åŽ‚ï¼šå•ä¾‹ï¼Œç”¨äºŽåˆ›å»ºå¹¶é…ç½®é€‚é…å™¨
                     services.AddSingleton<Business.Services.ISerialPortAdapterFactory, Business.Services.DefaultSerialPortAdapterFactory>();
  
-                    // Ð­Òé½âÎöÆ÷£¨¿É°´Éè±¸Ìæ»»£©
+                    // ä¸²å£æœåŠ¡ï¼šæ”¹ä¸ºçž¬æ€ï¼Œç”±å·¥åŽ‚æŒ‰éœ€åˆ›å»ºå¤šä¸ªå®žä¾‹ï¼ˆæ¯è®¾å¤‡ä¸€ä¸ªï¼‰
+                    services.AddTransient<Business.Services.ISerialPortService, Business.Services.SerialPortService>();
+                    services.AddSingleton<Business.Services.ISerialPortServiceFactory, Business.Services.DefaultSerialPortServiceFactory>();
+
+                    // åè®®è§£æžå™¨ï¼ˆå¯æŒ‰è®¾å¤‡æ›¿æ¢ï¼‰
                     services.AddSingleton<Business.Services.IProtocolParser, Business.Services.SimpleProtocolParser>();
-                    // Ð­Òé½âÎöÆ÷¹¤³§£º¿ÉÌæ»»ÎªÆäËûÐ­Òé
+                    // åè®®è§£æžå™¨å·¥åŽ‚ï¼šå¯æ›¿æ¢ä¸ºå…¶ä»–åè®®
                     services.AddSingleton<Business.Services.IProtocolParserFactory, Business.Services.DefaultProtocolParserFactory>();
  
-                    // µçÔ´¿ØÖÆÆ÷£ºµ¥Àý
-                    // - ¹ÜÀíÉè±¸×´Ì¬²¢Óë´®¿Ú·þÎñÐ­×÷¡£
-                    // - µ¥ÊµÀý±£Ö¤×´Ì¬ÓëÊÂ¼þÒ»ÖÂ¡£
+                    // è®¾å¤‡æŽ§åˆ¶å™¨ï¼šçž¬æ€ï¼Œç”±å·¥åŽ‚æŒ‰éœ€åˆ›å»ºå¤šä¸ªå®žä¾‹ï¼ˆæ¯è®¾å¤‡ä¸€ä¸ªï¼‰
+                    services.AddTransient<Business.Services.IDeviceController, Business.Services.PowerDeviceController>();
                     services.AddSingleton<Business.Services.IDeviceControllerFactory, Business.Services.DefaultDeviceControllerFactory>();
-                    services.AddSingleton<Business.Services.IDeviceController, Business.Services.PowerDeviceController>();
  
-                    // ÅäÖÃ²Ö¿â£ºµ¥Àý£¬¸ºÔðÅäÖÃ»º´æÓë´ÅÅÌ³Ö¾Ã»¯£¬±ÜÃâÖØ¸´´ÅÅÌ·ÃÎÊ
+                    // é…ç½®ä»“åº“ï¼šå•ä¾‹ï¼Œè´Ÿè´£é…ç½®ç¼“å­˜ä¸Žç£ç›˜æŒä¹…åŒ–ï¼Œé¿å…é‡å¤ç£ç›˜è®¿é—®
                     services.AddSingleton<Data.IConfigRepository, Data.FileConfigRepository>();
  
-                    // Ð­µ÷Æ÷£º¼õÇá MainForm Ö°Ôð
-                    services.AddSingleton<IMainFormCoordinator, MainFormCoordinator>();
+                    // å¤šè®¾å¤‡åè°ƒå™¨ï¼šå•ä¾‹ï¼Œç®¡ç†æ‰€æœ‰è®¾å¤‡
+                    services.AddSingleton<IMultiDeviceCoordinator, MultiDeviceCoordinator>();
  
-                    // Ö÷´°Ìå£ºµ¥Àý£¨Ó¦ÓÃÉúÃüÖÜÆÚÄÚÎ¨Ò»´°¿Ú£©
+                    // ä¸»çª—ä½“ï¼šå•ä¾‹ï¼ˆåº”ç”¨ç”Ÿå‘½å‘¨æœŸå†…å”¯ä¸€çª—å£ï¼‰
                     services.AddSingleton<MainForm>();
  
-                    // ¶Ô»°¿ò/¼àÊÓÆ÷£ºË²Ì¬£¬Ã¿´Î´´½¨ÐÂÊµÀý£¬±ÜÃâ×´Ì¬²ÐÁô
-                    services.AddTransient<SettingsForm>();
+                    // å¯¹è¯æ¡†/ç›‘è§†å™¨ï¼šçž¬æ€ï¼Œæ¯æ¬¡åˆ›å»ºæ–°å®žä¾‹ï¼Œé¿å…çŠ¶æ€æ®‹ç•™
+                    services.AddTransient<MultiDeviceSettingsForm>();
                     services.AddTransient<SerialMonitorForm>();
                 })
                 .ConfigureLogging(logging =>
@@ -94,7 +88,7 @@ namespace TestTool
                 })
                 .Build();
  
-            // ½âÎöÖ÷´°Ìå²¢ÔËÐÐ
+            // è§£æžä¸»çª—ä½“å¹¶è¿è¡Œ
             var form = host.Services.GetRequiredService<MainForm>();
             Application.Run(form);
         }

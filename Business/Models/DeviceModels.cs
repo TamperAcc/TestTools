@@ -2,35 +2,36 @@ using System;
 using System.IO.Ports;
 using System.Text;
 using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
 using TestTool.Business.Enums;
 using TestTool.Infrastructure.Constants;
 
 namespace TestTool.Business.Models
 {
     /// <summary>
-    /// ´®¿ÚÁ¬½ÓÅäÖÃÄ£ĞÍ£¬·â×°¶Ë¿ÚÃû¡¢²¨ÌØÂÊ¡¢Ğ£ÑéÎ»µÈ²ÎÊı
+    /// ä¸²å£è¿æ¥é…ç½®æ¨¡å‹ï¼Œå°è£…ç«¯å£åã€æ³¢ç‰¹ç‡ã€æ ¡éªŒä½ç­‰å‚æ•°
     /// </summary>
     public class ConnectionConfig
     {
-        // ´®¿ÚÃû³Æ£¬Èç COM1
+        // ä¸²å£åç§°ï¼Œå¦‚ COM1
         [Required(ErrorMessage = "PortName is required")]
         public string PortName { get; set; } = string.Empty;
-        // Ä¬ÈÏ²¨ÌØÂÊ
+        // é»˜è®¤æ³¢ç‰¹ç‡
         [Range(110, 1152000, ErrorMessage = "BaudRate must be between 110 and 1152000")]
         public int BaudRate { get; set; } = 115200;
-        // Ğ£ÑéÎ»ÀàĞÍ
+        // æ ¡éªŒä½ç±»å‹
         public Parity Parity { get; set; } = Parity.None;
-        // Êı¾İÎ»
+        // æ•°æ®ä½
         [Range(5, 8, ErrorMessage = "DataBits must be between 5 and 8")]
         public int DataBits { get; set; } = 8;
-        // Í£Ö¹Î»
+        // åœæ­¢ä½
         public StopBits StopBits { get; set; } = StopBits.One;
-        // ÎÄ±¾±àÂë
+        // æ–‡æœ¬ç¼–ç 
         public Encoding Encoding { get; set; } = Encoding.UTF8;
-        // ¶ÁÈ¡³¬Ê±£¨ºÁÃë£©
+        // è¯»å–è¶…æ—¶ï¼ˆæ¯«ç§’ï¼‰
         [Range(100, 60000, ErrorMessage = "ReadTimeout must be between 100ms and 60s")]
         public int ReadTimeout { get; set; } = 2000;
-        // Ğ´Èë³¬Ê±£¨ºÁÃë£©
+        // å†™å…¥è¶…æ—¶ï¼ˆæ¯«ç§’ï¼‰
         [Range(100, 60000, ErrorMessage = "WriteTimeout must be between 100ms and 60s")]
         public int WriteTimeout { get; set; } = 2000;
 
@@ -46,17 +47,17 @@ namespace TestTool.Business.Models
             return this;
         }
 
-        // ÎŞ²Î¹¹Ôìº¯ÊıÓÃÓÚĞòÁĞ»¯»òÊÖ¶¯¹¹Ôì³¡¾°
+        // æ— å‚æ„é€ å‡½æ•°ç”¨äºåºåˆ—åŒ–æˆ–æ‰‹åŠ¨æ„é€ åœºæ™¯
         public ConnectionConfig() { }
 
-        // ¸ù¾İ¶Ë¿ÚÃû¹¹Ôì
+        // æ ¹æ®ç«¯å£åæ„é€ 
         public ConnectionConfig(string portName)
         {
             PortName = portName;
         }
 
         /// <summary>
-        /// Ğ£ÑéÅäÖÃÊÇ·ñºÏ·¨£¨¼òµ¥Ğ£Ñé£º¶Ë¿ÚÃûÓëÊıÖµ²ÎÊı£©
+        /// æ ¡éªŒé…ç½®æ˜¯å¦åˆæ³•ï¼ˆç®€å•æ ¡éªŒï¼šç«¯å£åä¸æ•°å€¼å‚æ•°ï¼‰
         /// </summary>
         public bool IsValid()
         {
@@ -67,7 +68,7 @@ namespace TestTool.Business.Models
     }
 
     /// <summary>
-    /// Éè±¸×´Ì¬Ä£ĞÍ£º°üº¬Éè±¸Ãû³Æ¡¢Á¬½Ó×´Ì¬¡¢µçÔ´×´Ì¬¡¢×îºó¸üĞÂÊ±¼äÓë×´Ì¬ÏûÏ¢
+    /// è®¾å¤‡çŠ¶æ€æ¨¡å‹ï¼šåŒ…å«è®¾å¤‡åç§°ã€è¿æ¥çŠ¶æ€ã€ç”µæºçŠ¶æ€ã€æœ€åæ›´æ–°æ—¶é—´ä¸çŠ¶æ€æ¶ˆæ¯
     /// </summary>
     public class DeviceStatus
     {
@@ -79,46 +80,148 @@ namespace TestTool.Business.Models
 
         public DeviceStatus()
         {
-            // ³õÊ¼»¯Ä¬ÈÏÊ±¼äÓë×´Ì¬
+            // åˆå§‹åŒ–é»˜è®¤æ—¶é—´ä¸çŠ¶æ€
             LastUpdateTime = DateTime.Now;
             ConnectionState = ConnectionState.Disconnected;
             PowerState = DevicePowerState.Unknown;
         }
 
         /// <summary>
-        /// ÊÇ·ñ´¦ÓÚÒÑÁ¬½Ó×´Ì¬
+        /// æ˜¯å¦å¤„äºå·²è¿æ¥çŠ¶æ€
         /// </summary>
         public bool IsConnected => ConnectionState == ConnectionState.Connected;
 
         /// <summary>
-        /// ÊÇ·ñ¿ÉÒÔ·¢ËÍÃüÁî£ºĞèÒªÒÑÁ¬½ÓÇÒ·Ç´íÎó×´Ì¬
+        /// æ˜¯å¦å¯ä»¥å‘é€å‘½ä»¤ï¼šéœ€è¦å·²è¿æ¥ä¸”éé”™è¯¯çŠ¶æ€
         /// </summary>
         public bool CanSendCommand => IsConnected && ConnectionState != ConnectionState.Error;
     }
 
     /// <summary>
-    /// Ó¦ÓÃÅäÖÃÄ£ĞÍ£ºÓÃÓÚÔÚ´ÅÅÌ³Ö¾Ã»¯µÄ»ù±¾ÅäÖÃ
+    /// å•ä¸ªè®¾å¤‡çš„é…ç½®ä¿¡æ¯
+    /// </summary>
+    public class DeviceConfig
+    {
+        /// <summary>
+        /// è®¾å¤‡ç±»å‹
+        /// </summary>
+        public DeviceType DeviceType { get; set; }
+
+        /// <summary>
+        /// è®¾å¤‡æ˜¾ç¤ºåç§°
+        /// </summary>
+        public string DeviceName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// é€‰æ‹©çš„ä¸²å£
+        /// </summary>
+        public string SelectedPort { get; set; } = string.Empty;
+
+        /// <summary>
+        /// ç«¯å£æ˜¯å¦é”å®š
+        /// </summary>
+        public bool IsPortLocked { get; set; }
+
+        /// <summary>
+        /// è¿æ¥é…ç½®
+        /// </summary>
+        public ConnectionConfig ConnectionSettings { get; set; } = new();
+
+        /// <summary>
+        /// å¼€å¯å‘½ä»¤ï¼ˆé»˜è®¤ "ON"ï¼‰
+        /// </summary>
+        public string OnCommand { get; set; } = "ON";
+
+        /// <summary>
+        /// å…³é—­å‘½ä»¤ï¼ˆé»˜è®¤ "OFF"ï¼‰
+        /// </summary>
+        public string OffCommand { get; set; } = "OFF";
+
+        public DeviceConfig() { }
+
+        public DeviceConfig(DeviceType type, string name)
+        {
+            DeviceType = type;
+            DeviceName = name;
+        }
+    }
+
+    /// <summary>
+    /// åº”ç”¨é…ç½®æ¨¡å‹ï¼šä¿å­˜äºç£ç›˜æŒä¹…åŒ–çš„åŸºæœ¬é…ç½®
     /// </summary>
     public class AppConfig
     {
-        // ÓÃ»§Ñ¡ÖĞµÄ´®¿Ú
-        public string SelectedPort { get; set; } = string.Empty;
-        // ´®¿ÚÊÇ·ñ±»½çÃæËø¶¨£¬½ûÖ¹ĞŞ¸Ä
-        public bool IsPortLocked { get; set; }
-        // Éè±¸Ãû³Æ
-        public string DeviceName { get; set; }
-        // ´®¿ÚÁ¬½ÓµÄÄ¬ÈÏÉèÖÃ
-        public ConnectionConfig ConnectionSettings { get; set; }
+        // ä¿ç•™æ—§å±æ€§ä»¥å…¼å®¹å•è®¾å¤‡åœºæ™¯ï¼ˆæ˜ å°„åˆ° FCC1ï¼‰
+        public string SelectedPort
+        {
+            get => GetDeviceConfig(DeviceType.FCC1).SelectedPort;
+            set => GetDeviceConfig(DeviceType.FCC1).SelectedPort = value;
+        }
+
+        public bool IsPortLocked
+        {
+            get => GetDeviceConfig(DeviceType.FCC1).IsPortLocked;
+            set => GetDeviceConfig(DeviceType.FCC1).IsPortLocked = value;
+        }
+
+        public string DeviceName
+        {
+            get => GetDeviceConfig(DeviceType.FCC1).DeviceName;
+            set => GetDeviceConfig(DeviceType.FCC1).DeviceName = value;
+        }
+
+        public ConnectionConfig ConnectionSettings
+        {
+            get => GetDeviceConfig(DeviceType.FCC1).ConnectionSettings;
+            set => GetDeviceConfig(DeviceType.FCC1).ConnectionSettings = value;
+        }
+
+        /// <summary>
+        /// å¤šè®¾å¤‡é…ç½®å­—å…¸
+        /// </summary>
+        public Dictionary<DeviceType, DeviceConfig> Devices { get; set; } = new();
+
         public RetryPolicyConfig? RetryPolicy { get; set; }
 
         public AppConfig()
         {
-            // Ä¬ÈÏÉè±¸Ãû³Æ
-            DeviceName = "FCC1µçÔ´";
-            // ³õÊ¼»¯Á¬½ÓÅäÖÃÎªÄ¬ÈÏÖµ
-            ConnectionSettings = new ConnectionConfig();
             RetryPolicy = new RetryPolicyConfig();
+            // åˆå§‹åŒ– 4 ä¸ªè®¾å¤‡çš„é»˜è®¤é…ç½®
+            InitializeDefaultDevices();
         }
+
+        private void InitializeDefaultDevices()
+        {
+            if (!Devices.ContainsKey(DeviceType.FCC1))
+                Devices[DeviceType.FCC1] = new DeviceConfig(DeviceType.FCC1, "FCC1ç”µæº");
+            if (!Devices.ContainsKey(DeviceType.FCC2))
+                Devices[DeviceType.FCC2] = new DeviceConfig(DeviceType.FCC2, "FCC2ç”µæº");
+            if (!Devices.ContainsKey(DeviceType.FCC3))
+                Devices[DeviceType.FCC3] = new DeviceConfig(DeviceType.FCC3, "FCC3ç”µæº");
+            if (!Devices.ContainsKey(DeviceType.HIL))
+                Devices[DeviceType.HIL] = new DeviceConfig(DeviceType.HIL, "HILç”µæº");
+        }
+
+        /// <summary>
+        /// è·å–æŒ‡å®šè®¾å¤‡ç±»å‹çš„é…ç½®ï¼ˆè‹¥ä¸å­˜åœ¨åˆ™åˆ›å»ºé»˜è®¤ï¼‰
+        /// </summary>
+        public DeviceConfig GetDeviceConfig(DeviceType type)
+        {
+            if (!Devices.ContainsKey(type))
+            {
+                Devices[type] = new DeviceConfig(type, GetDefaultDeviceName(type));
+            }
+            return Devices[type];
+        }
+
+        private static string GetDefaultDeviceName(DeviceType type) => type switch
+        {
+            DeviceType.FCC1 => "FCC1ç”µæº",
+            DeviceType.FCC2 => "FCC2ç”µæº",
+            DeviceType.FCC3 => "FCC3ç”µæº",
+            DeviceType.HIL => "HILç”µæº",
+            _ => "æœªçŸ¥è®¾å¤‡"
+        };
     }
 
     public class RetryPolicyConfig

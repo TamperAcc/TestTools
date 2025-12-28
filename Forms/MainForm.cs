@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -13,46 +14,65 @@ using TestTool.Infrastructure.Helpers;
 namespace TestTool
 {
     /// <summary>
-    /// 串口工具主窗体 - 重构版本
+    /// 监视器状态变化事件参数
+    /// </summary>
+    public class MonitorStateChangedEventArgs : EventArgs
+    {
+        public DeviceType DeviceType { get; }
+        public bool IsOpen { get; }
+
+        public MonitorStateChangedEventArgs(DeviceType deviceType, bool isOpen)
+        {
+            DeviceType = deviceType;
+            IsOpen = isOpen;
+        }
+    }
+
+    /// <summary>
+    /// 串口工具主窗体 - 多设备版本
     /// </summary>
     public partial class MainForm : Form
     {
-        // 业务协调器：封装连接/命令/配置
-        private readonly IMainFormCoordinator _coordinator = null!;
+        // 多设备协调器
+        private readonly IMultiDeviceCoordinator _coordinator = null!;
         private IOptionsMonitor<AppConfig>? _optionsMonitor;
         private IDisposable? _optionsChangeToken;
         private readonly ILogger<MainForm>? _logger;
         private readonly bool _isDesignMode;
 
-        // 应用配置缓存（从仓库加载）
+        // 应用配置缓存
         private AppConfig _appConfig = null!;
-        // 串口监视窗口实例（可为空）
-        private SerialMonitorForm? _serialMonitorForm;
-        // 设置窗口实例（可为空，改为无模式以允许主窗体操作）
-        private SettingsForm? _settingsForm;
-        // SettingsForm 事件处理引用，便于解绑
-        private EventHandler? _settingsToggleHandler;
-        private EventHandler? _settingsConfirmedHandler;
-        private FormClosedEventHandler? _settingsClosedHandler;
+
+        // 每设备独立的监视器窗口
+        private readonly Dictionary<DeviceType, SerialMonitorForm?> _monitorForms = new();
+
+        // 设置窗口实例
+        private MultiDeviceSettingsForm? _settingsForm;
 
         // 用于自定义窗体可缩放区域的把手尺寸常量
         private const int RESIZE_HANDLE_SIZE = AppConstants.UI.ResizeHandleSize;
 
-        // 参数less 构造：供 WinForms 设计器使用（不要在此处进行服务绑定）
+        // 设备控件映射（便于统一处理）
+        private Dictionary<DeviceType, (Label status, Button connect, Button on, Button off)> _deviceControls = null!;
+
+        /// <summary>
+        /// 监视器状态变化事件：当监视器窗口打开或关闭时触发
+        /// </summary>
+        public event EventHandler<MonitorStateChangedEventArgs>? MonitorStateChanged;
+
+        // 无参构造：供 WinForms 设计器使用
         public MainForm()
         {
             _isDesignMode = true;
-            // 注册编码提供者以支持更多编码（如 GBK）
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             InitializeComponent();
             UIHelper.InitializeFonts(this.Font);
         }
 
         // 构造函数：通过 DI 注入依赖
-        public MainForm(IMainFormCoordinator coordinator, IOptionsMonitor<AppConfig> optionsMonitor, ILogger<MainForm>? logger = null)
+        public MainForm(IMultiDeviceCoordinator coordinator, IOptionsMonitor<AppConfig> optionsMonitor, ILogger<MainForm>? logger = null)
             : this()
         {
-            // 在 DI 构造器中覆盖设计时设置
             _isDesignMode = false;
             _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
             _optionsMonitor = optionsMonitor ?? throw new ArgumentNullException(nameof(optionsMonitor));
@@ -60,35 +80,23 @@ namespace TestTool
             _optionsChangeToken = _optionsMonitor.OnChange(OnAppConfigChanged);
         }
 
-        // 配置变更回调：合并来自 appsettings 的更新并刷新 UI
+        // 配置变更回调
         private void OnAppConfigChanged(AppConfig newConfig)
         {
             try
             {
-                // 仅更新允许由 appsettings 控制的字段（不覆盖用户已保存的选择）
                 if (_appConfig == null)
                 {
                     _appConfig = newConfig;
                 }
-                else
-                {
-                    _appConfig.DeviceName = newConfig.DeviceName ?? _appConfig.DeviceName;
-                    // 如果用户未选择端口，则使用配置中的端口
-                    if (string.IsNullOrWhiteSpace(_appConfig.SelectedPort))
-                    {
-                        _appConfig.SelectedPort = newConfig.SelectedPort ?? _appConfig.SelectedPort;
-                    }
-                    _appConfig.ConnectionSettings = (newConfig.ConnectionSettings ?? _appConfig.ConnectionSettings).NormalizeWithDefaults();
-                }
 
-                // 在 UI 线程更新显示（如果需要）
                 if (InvokeRequired)
                 {
-                    BeginInvoke(new Action(UpdateUI));
+                    BeginInvoke(new Action(UpdateAllDevicesUI));
                 }
                 else
                 {
-                    UpdateUI();
+                    UpdateAllDevicesUI();
                 }
             }
             catch (Exception ex)
@@ -97,24 +105,28 @@ namespace TestTool
             }
         }
 
-        // 窗体加载事件：异步加载配置并初始化设备控制器与事件订阅
+        // 窗体加载事件
         private async void MainForm_Load(object? sender, EventArgs e)
         {
             if (_isDesignMode)
-                return; // 在设计模式下不执行运行时初始化
+                return;
 
             try
             {
+                // 初始化控件映射
+                InitializeDeviceControlMappings();
+
                 await _coordinator.InitializeAsync();
                 _appConfig = _coordinator.AppConfig;
 
+                // 订阅多设备事件
                 _coordinator.ConnectionStateChanged += OnConnectionStateChanged;
                 _coordinator.DataReceived += OnSerialDataReceived;
                 _coordinator.DataSent += OnSerialDataSent;
                 _coordinator.DeviceStatusChanged += OnDeviceStatusChanged;
 
-                // 根据初始配置更新界面控件状态
-                UpdateUI();
+                // 更新所有设备 UI
+                UpdateAllDevicesUI();
             }
             catch (Exception ex)
             {
@@ -122,246 +134,335 @@ namespace TestTool
             }
         }
 
-        // 处理串口发送事件：转发到监视器显示发送记录
-        private void OnSerialDataSent(object? sender, DataSentEventArgs e)
+        // 初始化设备控件映射
+        private void InitializeDeviceControlMappings()
         {
-            if (_serialMonitorForm == null || _serialMonitorForm.IsDisposed || !_serialMonitorForm.Visible)
+            _deviceControls = new Dictionary<DeviceType, (Label, Button, Button, Button)>
             {
-                return;
-            }
-
-            // 在监视器中以发送样式追加文本
-            _serialMonitorForm.AppendSent(e.Command);
+                { DeviceType.FCC1, (lblStatusFCC1, btnConnectFCC1, btnOnFCC1, btnOffFCC1) },
+                { DeviceType.FCC2, (lblStatusFCC2, btnConnectFCC2, btnOnFCC2, btnOffFCC2) },
+                { DeviceType.FCC3, (lblStatusFCC3, btnConnectFCC3, btnOnFCC3, btnOffFCC3) },
+                { DeviceType.HIL, (lblStatusHIL, btnConnectHIL, btnOnHIL, btnOffHIL) }
+            };
         }
 
-        // 连接按钮点击：根据当前连接状态执行连接或断开
-        private async void btnConnect_Click(object? sender, EventArgs e)
+        // 更新所有设备 UI
+        private void UpdateAllDevicesUI()
         {
-            // 防止重复点击导致并发操作
-            if (!btnConnect.Enabled)
+            foreach (var deviceType in _deviceControls.Keys)
             {
+                UpdateDeviceUI(deviceType);
+            }
+        }
+
+        // 更新单个设备 UI
+        private void UpdateDeviceUI(DeviceType deviceType)
+        {
+            if (!_deviceControls.TryGetValue(deviceType, out var controls))
+                return;
+
+            var config = _appConfig.GetDeviceConfig(deviceType);
+            UIHelper.SetStatusLabel(controls.status, ConnectionState.Disconnected, config.DeviceName, UIConstants.StatusMessages.Disconnected);
+            UIHelper.SetButtonDisabled(controls.on);
+            UIHelper.SetButtonDisabled(controls.off);
+        }
+
+        #region 设备连接按钮事件
+
+        private async void btnConnectFCC1_Click(object? sender, EventArgs e) => await HandleConnectClick(DeviceType.FCC1);
+        private async void btnConnectFCC2_Click(object? sender, EventArgs e) => await HandleConnectClick(DeviceType.FCC2);
+        private async void btnConnectFCC3_Click(object? sender, EventArgs e) => await HandleConnectClick(DeviceType.FCC3);
+        private async void btnConnectHIL_Click(object? sender, EventArgs e) => await HandleConnectClick(DeviceType.HIL);
+
+        private async Task HandleConnectClick(DeviceType deviceType)
+        {
+            if (!_deviceControls.TryGetValue(deviceType, out var controls))
+                return;
+
+            if (!controls.connect.Enabled)
+                return;
+
+            var config = _appConfig.GetDeviceConfig(deviceType);
+
+            // 如果已连接，允许断开
+            if (_coordinator.IsConnected(deviceType))
+            {
+                await _coordinator.DisconnectAsync(deviceType);
                 return;
             }
 
-            if (_coordinator.IsConnected)
+            // 检查是否已锁定，未锁定不允许连接
+            if (!config.IsPortLocked)
             {
-                await _coordinator.DisconnectAsync();
+                UIHelper.SetStatusLabel(controls.status, ConnectionState.Error, config.DeviceName, "请锁定串口配置");
                 return;
             }
 
-            if (string.IsNullOrEmpty(_appConfig.SelectedPort) || _appConfig.SelectedPort == "无可用串口")
+            if (string.IsNullOrEmpty(config.SelectedPort) || config.SelectedPort == "无可用串口")
             {
-                UIHelper.SetStatusLabel(lblStatus, ConnectionState.Error, _appConfig.DeviceName, UIConstants.StatusMessages.PleaseSelectPort);
+                UIHelper.SetStatusLabel(controls.status, ConnectionState.Error, config.DeviceName, UIConstants.StatusMessages.PleaseSelectPort);
                 return;
             }
 
-            btnConnect.Enabled = false;
-            UIHelper.SetStatusLabel(lblStatus, ConnectionState.Connecting, _appConfig.DeviceName, UIConstants.StatusMessages.Connecting);
+            controls.connect.Enabled = false;
+            UIHelper.SetStatusLabel(controls.status, ConnectionState.Connecting, config.DeviceName, UIConstants.StatusMessages.Connecting);
 
             try
             {
-                await _coordinator.ConnectAsync();
+                await _coordinator.ConnectAsync(deviceType);
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Error connecting to port {Port}", _appConfig.SelectedPort);
-                UIHelper.SetStatusLabel(lblStatus, ConnectionState.Error, _appConfig.DeviceName, $"连接失败: {ex.Message}");
+                _logger?.LogError(ex, "Error connecting {Device} to port {Port}", deviceType, config.SelectedPort);
+                UIHelper.SetStatusLabel(controls.status, ConnectionState.Error, config.DeviceName, $"连接失败: {ex.Message}");
             }
             finally
             {
-                btnConnect.Enabled = true;
+                controls.connect.Enabled = true;
             }
         }
 
-        // 从设置界面切换监视器显示（确保单例）
-        private void ToggleMonitorFromSettings()
+        #endregion
+
+        #region 设备 ON/OFF 按钮事件
+
+        private async void btnOnFCC1_Click(object? sender, EventArgs e) => await _coordinator.TurnOnAsync(DeviceType.FCC1);
+        private async void btnOffFCC1_Click(object? sender, EventArgs e) => await _coordinator.TurnOffAsync(DeviceType.FCC1);
+
+        private async void btnOnFCC2_Click(object? sender, EventArgs e) => await _coordinator.TurnOnAsync(DeviceType.FCC2);
+        private async void btnOffFCC2_Click(object? sender, EventArgs e) => await _coordinator.TurnOffAsync(DeviceType.FCC2);
+
+        private async void btnOnFCC3_Click(object? sender, EventArgs e) => await _coordinator.TurnOnAsync(DeviceType.FCC3);
+        private async void btnOffFCC3_Click(object? sender, EventArgs e) => await _coordinator.TurnOffAsync(DeviceType.FCC3);
+
+        private async void btnOnHIL_Click(object? sender, EventArgs e) => await _coordinator.TurnOnAsync(DeviceType.HIL);
+        private async void btnOffHIL_Click(object? sender, EventArgs e) => await _coordinator.TurnOffAsync(DeviceType.HIL);
+
+        #endregion
+
+        #region 事件处理
+
+        // 连接状态变化
+        private void OnConnectionStateChanged(object? sender, DeviceConnectionStateChangedEventArgs e)
         {
-            if (_serialMonitorForm != null && !_serialMonitorForm.IsDisposed && _serialMonitorForm.Visible)
+            if (InvokeRequired)
             {
-                _serialMonitorForm.Close();
+                BeginInvoke(new Action(() => OnConnectionStateChanged(sender, e)));
                 return;
             }
 
-            EnsureMonitorForm();
-            _serialMonitorForm!.Show(this);
+            if (!_deviceControls.TryGetValue(e.DeviceType, out var controls))
+                return;
+
+            var config = _appConfig.GetDeviceConfig(e.DeviceType);
+            var args = e.ConnectionArgs;
+
+            UIHelper.SetStatusLabel(controls.status, args.NewState, config.DeviceName, args.Message);
+            UIHelper.UpdateConnectButton(controls.connect, args.NewState == ConnectionState.Connected);
+
+            if (args.NewState == ConnectionState.Connected)
+            {
+                controls.on.Enabled = true;
+                controls.off.Enabled = true;
+                UIHelper.SetButtonDefault(controls.on);
+                UIHelper.SetButtonDefault(controls.off);
+            }
+            else
+            {
+                UIHelper.SetButtonDisabled(controls.on);
+                UIHelper.SetButtonDisabled(controls.off);
+            }
         }
 
-        // 打开电源按钮处理：委托给设备控制器
-        private async void btnOn_Click(object? sender, EventArgs e)
+        // 设备状态变化
+        private void OnDeviceStatusChanged(object? sender, DeviceStatusChangedWithTypeEventArgs e)
         {
-            await _coordinator.TurnOnAsync();
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => OnDeviceStatusChanged(sender, e)));
+                return;
+            }
+
+            if (!_deviceControls.TryGetValue(e.DeviceType, out var controls))
+                return;
+
+            var status = e.StatusArgs.Status;
+
+            if (status.PowerState == DevicePowerState.On)
+            {
+                UIHelper.SetButtonActive(controls.on, DevicePowerState.On);
+                UIHelper.SetButtonDefault(controls.off);
+            }
+            else if (status.PowerState == DevicePowerState.Off)
+            {
+                UIHelper.SetButtonDefault(controls.on);
+                UIHelper.SetButtonActive(controls.off, DevicePowerState.Off);
+            }
+            else
+            {
+                UIHelper.SetButtonDefault(controls.on);
+                UIHelper.SetButtonDefault(controls.off);
+            }
         }
 
-        // 关闭电源按钮处理：委托给设备控制器
-        private async void btnOff_Click(object? sender, EventArgs e)
+        // 数据接收
+        private void OnSerialDataReceived(object? sender, DeviceDataReceivedEventArgs e)
         {
-            await _coordinator.TurnOffAsync();
+            if (!_monitorForms.TryGetValue(e.DeviceType, out var monitor) || monitor == null || monitor.IsDisposed || !monitor.Visible)
+                return;
+
+            monitor.AppendLine(e.DataArgs.Data);
         }
 
-        // 菜单设置点击：改为无模式弹窗，主窗口可拖动/缩放
+        // 数据发送
+        private void OnSerialDataSent(object? sender, DeviceDataSentEventArgs e)
+        {
+            if (!_monitorForms.TryGetValue(e.DeviceType, out var monitor) || monitor == null || monitor.IsDisposed || !monitor.Visible)
+                return;
+
+            monitor.AppendSent(e.DataArgs.Command);
+        }
+
+        #endregion
+
+        #region 监视器窗口管理
+
+        // 切换指定设备的监视器窗口
+        public void ToggleMonitor(DeviceType deviceType)
+        {
+            if (_monitorForms.TryGetValue(deviceType, out var monitor) && monitor != null && !monitor.IsDisposed && monitor.Visible)
+            {
+                monitor.Close();
+                // Close 会触发 FormClosed，FormClosed 中会触发 MonitorStateChanged
+                return;
+            }
+
+            EnsureMonitorForm(deviceType);
+            _monitorForms[deviceType]!.Show(this);
+            // 通知监视器已打开
+            MonitorStateChanged?.Invoke(this, new MonitorStateChangedEventArgs(deviceType, true));
+        }
+
+        // 确保监视器窗口存在并订阅关闭事件
+        private void EnsureMonitorForm(DeviceType deviceType)
+        {
+            var config = _appConfig.GetDeviceConfig(deviceType);
+            var title = string.IsNullOrWhiteSpace(config.SelectedPort)
+                ? $"{config.DeviceName} 打印"
+                : $"{config.DeviceName} 打印 ({config.SelectedPort})";
+
+            if (!_monitorForms.TryGetValue(deviceType, out var monitor) || monitor == null || monitor.IsDisposed)
+            {
+                var newMonitor = new SerialMonitorForm(title);
+                _monitorForms[deviceType] = newMonitor;
+
+                // 订阅关闭事件以通知状态变化
+                var dt = deviceType; // 捕获变量避免闭包问题
+                newMonitor.FormClosed += (s, args) =>
+                {
+                    _logger?.LogDebug("Monitor {Device} closed, firing MonitorStateChanged", dt);
+                    MonitorStateChanged?.Invoke(this, new MonitorStateChangedEventArgs(dt, false));
+                };
+            }
+            else
+            {
+                monitor.Text = title;
+            }
+        }
+
+        // 检查指定设备监视器是否打开
+        public bool IsMonitorOpen(DeviceType deviceType)
+        {
+            if (!_monitorForms.TryGetValue(deviceType, out var monitor))
+                return false;
+            if (monitor == null || monitor.IsDisposed)
+                return false;
+            // 使用 IsHandleCreated 和 Visible 组合判断
+            return monitor.IsHandleCreated && monitor.Visible;
+        }
+
+        #endregion
+
+        #region 设置窗口
+
         private void menuSettings_Click(object? sender, EventArgs e)
         {
             if (_settingsForm == null || _settingsForm.IsDisposed)
             {
-                int currentBaudRate = _appConfig.ConnectionSettings?.BaudRate ?? 115200;
-                _settingsForm = new SettingsForm(_appConfig.SelectedPort, currentBaudRate, _appConfig.IsPortLocked, _appConfig.DeviceName, _serialMonitorForm?.Visible == true);
-
-                _settingsToggleHandler = (_, _) => ToggleMonitorFromSettings();
-                _settingsConfirmedHandler = async (_, _) => await ApplySettingsFromDialogAsync();
-                _settingsClosedHandler = (_, _) =>
-                {
-                    DetachSettingsFormEvents();
-                    _settingsForm = null;
-                };
-
-                _settingsForm.ToggleMonitorRequested += _settingsToggleHandler;
-                _settingsForm.SettingsConfirmed += _settingsConfirmedHandler;
-                _settingsForm.FormClosed += _settingsClosedHandler;
+                _settingsForm = new MultiDeviceSettingsForm(_appConfig, this);
+                _settingsForm.SettingsConfirmed += async (_, _) => await ApplySettingsFromDialogAsync();
+                _settingsForm.DeviceSettingsChanged += async (_, args) => await ApplyDeviceSettingsAsync(args);
+                _settingsForm.FormClosed += (_, _) => _settingsForm = null;
             }
 
             _settingsForm.Show(this);
             _settingsForm.BringToFront();
         }
 
-        // 应用设置窗口中的选择并保存
+        // 应用单个设备的设置变更（锁定时立即保存）
+        private async Task ApplyDeviceSettingsAsync(DeviceSettingsChangedEventArgs args)
+        {
+            try
+            {
+                // 如果解锁且设备正在连接中，先断开连接
+                if (!args.IsLocked && _coordinator.IsConnected(args.DeviceType))
+                {
+                    _logger?.LogInformation("Device {Device} unlocked, disconnecting...", args.DeviceType);
+                    await _coordinator.DisconnectAsync(args.DeviceType);
+                    // DisconnectAsync 完成后，OnConnectionStateChanged 会自动更新 UI
+                }
+
+                _coordinator.TryUpdateConnectionConfig(args.DeviceType, args.Port, args.BaudRate, args.IsLocked);
+                await _coordinator.SaveConfigAsync();
+
+                _logger?.LogInformation("Device {Device} settings saved: Port={Port}, BaudRate={BaudRate}, Locked={Locked}", 
+                    args.DeviceType, args.Port, args.BaudRate, args.IsLocked);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Error saving device settings for {Device}", args.DeviceType);
+            }
+        }
+
         private async Task ApplySettingsFromDialogAsync()
         {
             if (_settingsForm == null)
-            {
                 return;
-            }
-
-            var ok = _coordinator.TryUpdateConnectionConfig(_settingsForm.SelectedPort, _settingsForm.SelectedBaudRate, _settingsForm.IsPortLocked);
-            if (!ok)
-            {
-                UIHelper.SetStatusLabel(lblStatus, ConnectionState.Error, _appConfig.DeviceName, "配置无效");
-                return;
-            }
 
             try
             {
+                // 从设置窗口获取所有设备配置并更新
+                foreach (DeviceType deviceType in Enum.GetValues<DeviceType>())
+                {
+                    var (port, baudRate, isLocked) = _settingsForm.GetDeviceSettings(deviceType);
+                    _coordinator.TryUpdateConnectionConfig(deviceType, port, baudRate, isLocked);
+                }
+
                 await _coordinator.SaveConfigAsync();
-            }
-            catch
-            {
-                // 忽略保存错误，不阻塞 UI
-            }
-        }
+                UpdateAllDevicesUI();
 
-        private void DetachSettingsFormEvents()
-        {
-            if (_settingsForm != null)
-            {
-                if (_settingsToggleHandler != null)
+                // 更新所有打开的监视器窗口标题
+                foreach (var kvp in _monitorForms)
                 {
-                    _settingsForm.ToggleMonitorRequested -= _settingsToggleHandler;
-                    _settingsToggleHandler = null;
-                }
-                if (_settingsConfirmedHandler != null)
-                {
-                    _settingsForm.SettingsConfirmed -= _settingsConfirmedHandler;
-                    _settingsConfirmedHandler = null;
-                }
-                if (_settingsClosedHandler != null)
-                {
-                    _settingsForm.FormClosed -= _settingsClosedHandler;
-                    _settingsClosedHandler = null;
+                    if (kvp.Value != null && !kvp.Value.IsDisposed)
+                    {
+                        var config = _appConfig.GetDeviceConfig(kvp.Key);
+                        kvp.Value.Text = string.IsNullOrWhiteSpace(config.SelectedPort)
+                            ? $"{config.DeviceName} 打印"
+                            : $"{config.DeviceName} 打印 ({config.SelectedPort})";
+                    }
                 }
             }
-        }
-
-        // 连接状态变化处理：在 UI 线程更新状态标签和按钮状态
-        private void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs e)
-        {
-            if (InvokeRequired)
+            catch (Exception ex)
             {
-                Invoke(new Action(() => OnConnectionStateChanged(sender, e)));
-                return;
-            }
-
-            UIHelper.SetStatusLabel(lblStatus, e.NewState, _appConfig.DeviceName, e.Message);
-            UIHelper.UpdateConnectButton(btnConnect, e.NewState == ConnectionState.Connected);
-
-            // 根据连接状态启/禁用电源按钮
-            if (e.NewState == ConnectionState.Connected)
-            {
-                btnOn.Enabled = true;
-                btnOff.Enabled = true;
-                UIHelper.SetButtonDefault(btnOn);
-                UIHelper.SetButtonDefault(btnOff);
-            }
-            else
-            {
-                UIHelper.SetButtonDisabled(btnOn);
-                UIHelper.SetButtonDisabled(btnOff);
+                _logger?.LogWarning(ex, "Error saving settings");
             }
         }
 
-        // 设备状态变化处理：更新电源按钮外观以反映当前电源状态
-        private void OnDeviceStatusChanged(object? sender, DeviceStatusChangedEventArgs e)
-        {
-            if (InvokeRequired)
-            {
-                Invoke(new Action(() => OnDeviceStatusChanged(sender, e)));
-                return;
-            }
+        #endregion
 
-            if (e.Status.PowerState == DevicePowerState.On)
-            {
-                UIHelper.SetButtonActive(btnOn, DevicePowerState.On);
-                UIHelper.SetButtonDefault(btnOff);
-            }
-            else if (e.Status.PowerState == DevicePowerState.Off)
-            {
-                UIHelper.SetButtonDefault(btnOn);
-                UIHelper.SetButtonActive(btnOff, DevicePowerState.Off);
-            }
-            else
-            {
-                UIHelper.SetButtonDefault(btnOn);
-                UIHelper.SetButtonDefault(btnOff);
-            }
-        }
+        #region 窗口管理
 
-        // 串口接收数据处理：将收到的数据追加到监视器
-        private void OnSerialDataReceived(object? sender, DataReceivedEventArgs e)
-        {
-            if (_serialMonitorForm == null || _serialMonitorForm.IsDisposed || !_serialMonitorForm.Visible)
-            {
-                return;
-            }
-
-            // 使用兼容的 AppendLine（映射为接收显示）
-            _serialMonitorForm.AppendLine(e.Data);
-        }
-
-        // 确保监视器窗口存在并设置标题
-        private void EnsureMonitorForm()
-        {
-            if (_serialMonitorForm == null || _serialMonitorForm.IsDisposed)
-            {
-                var title = string.IsNullOrWhiteSpace(_appConfig?.SelectedPort)
-                    ? "串口打印"
-                    : $"{_appConfig.DeviceName} 打印 ({_appConfig.SelectedPort})";
-                _serialMonitorForm = new SerialMonitorForm(title);
-            }
-            else
-            {
-                _serialMonitorForm.Text = string.IsNullOrWhiteSpace(_appConfig?.SelectedPort)
-                    ? "串口打印"
-                    : $"{_appConfig.DeviceName} 打印 ({_appConfig.SelectedPort})";
-            }
-        }
-
-        // 更新 UI 初始状态：设置状态标签和禁用电源按钮
-        private void UpdateUI()
-        {
-            UIHelper.SetStatusLabel(lblStatus, ConnectionState.Disconnected, _appConfig.DeviceName, UIConstants.StatusMessages.Disconnected);
-            UIHelper.SetButtonDisabled(btnOn);
-            UIHelper.SetButtonDisabled(btnOff);
-        }
-
-        // 窗口边框拖动支持：处理 WM_NCHITTEST 并为边角返回相应 HT 值
         protected override void WndProc(ref Message m)
         {
             const int WM_NCHITTEST = 0x0084;
@@ -402,9 +503,14 @@ namespace TestTool
             }
         }
 
-        // 窗口关闭时释放资源与取消订阅，防止回调继续触发
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            if (_isDesignMode || _coordinator == null)
+            {
+                base.OnFormClosing(e);
+                return;
+            }
+
             try
             {
                 _coordinator.ConnectionStateChanged -= OnConnectionStateChanged;
@@ -412,21 +518,34 @@ namespace TestTool
                 _coordinator.DataSent -= OnSerialDataSent;
                 _coordinator.DeviceStatusChanged -= OnDeviceStatusChanged;
                 _optionsChangeToken?.Dispose();
+
                 if (_settingsForm != null)
                 {
-                    DetachSettingsFormEvents();
                     _settingsForm.Dispose();
                     _settingsForm = null;
                 }
+
+                // 关闭所有监视器窗口
+                foreach (var kvp in _monitorForms)
+                {
+                    if (kvp.Value != null && !kvp.Value.IsDisposed)
+                    {
+                        kvp.Value.Close();
+                    }
+                }
+                _monitorForms.Clear();
+
                 _coordinator.Dispose();
                 UIHelper.DisposeFonts();
             }
             catch
             {
-                // 忽略释放错误，确保窗口能关闭
+                // 忽略释放错误
             }
 
             base.OnFormClosing(e);
         }
+
+        #endregion
     }
 }

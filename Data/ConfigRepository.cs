@@ -1,17 +1,21 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Ports;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using TestTool.Business.Enums;
 using TestTool.Business.Models;
 using TestTool.Infrastructure.Constants;
 
 namespace TestTool.Data
 {
     /// <summary>
-    /// ÅäÖÃ²Ö¿â½Ó¿Ú£º¶¨ÒåÅäÖÃ¼ÓÔØÓë±£´æ²Ù×÷
+    /// é…ç½®ä»“åº“æ¥å£ï¼šå®šä¹‰é…ç½®åŠ è½½ä¸ä¿å­˜æ“ä½œ
     /// </summary>
     public interface IConfigRepository
     {
@@ -22,120 +26,203 @@ namespace TestTool.Data
     }
 
     /// <summary>
-    /// »ùÓÚÎÄ¼şµÄÅäÖÃ²Ö¿âÊµÏÖ£º½«ÅäÖÃÏîĞ´Èëµ½ Config Ä¿Â¼ÏÂµÄÎÄ¼şÖĞ
-    /// ÏÖÔÚÖ§³Ö´Ó IOptionsMonitor&lt;AppConfig&gt; »ñÈ¡³õÊ¼ÅäÖÃ
+    /// è®¾å¤‡é…ç½® JSON æ¨¡å‹ï¼ˆç”¨äºåºåˆ—åŒ–ï¼‰
+    /// </summary>
+    public class DeviceConfigJson
+    {
+        [JsonPropertyName("port")]
+        public string Port { get; set; } = string.Empty;
+        
+        [JsonPropertyName("baudRate")]
+        public int BaudRate { get; set; } = 115200;
+        
+        [JsonPropertyName("isLocked")]
+        public bool IsLocked { get; set; }
+        
+        [JsonPropertyName("deviceName")]
+        public string DeviceName { get; set; } = string.Empty;
+        
+        [JsonPropertyName("onCommand")]
+        public string OnCommand { get; set; } = "ON";
+        
+        [JsonPropertyName("offCommand")]
+        public string OffCommand { get; set; } = "OFF";
+    }
+
+    /// <summary>
+    /// å¤šè®¾å¤‡é…ç½® JSON æ¨¡å‹ï¼ˆç”¨äºåºåˆ—åŒ–ï¼‰
+    /// </summary>
+    public class DevicesConfigJson
+    {
+        [JsonPropertyName("device1")]
+        public DeviceConfigJson FCC1 { get; set; } = new();
+        
+        [JsonPropertyName("device2")]
+        public DeviceConfigJson FCC2 { get; set; } = new();
+        
+        [JsonPropertyName("device3")]
+        public DeviceConfigJson FCC3 { get; set; } = new();
+        
+        [JsonPropertyName("device4")]
+        public DeviceConfigJson HIL { get; set; } = new();
+    }
+
+    /// <summary>
+    /// åŸºäºæ–‡ä»¶çš„é…ç½®ä»“åº“å®ç°ï¼šå°†é…ç½®è¯»å†™åˆ° Config ç›®å½•ä¸‹çš„æ–‡ä»¶ä¸­
+    /// æ”¯æŒå¤šè®¾å¤‡ JSON æ ¼å¼é…ç½®
     /// </summary>
     public class FileConfigRepository : IConfigRepository
     {
-        // ÅäÖÃÎÄ¼şÄ¿Â¼³£Á¿
         private const string CONFIG_DIR = "Config";
-        // »º´æµÄÓ¦ÓÃÅäÖÃ£¨¿É¿Õ£¬ÑÓ³Ù¼ÓÔØ£©
         private AppConfig? _cachedConfig;
         private readonly ILogger<FileConfigRepository> _logger;
         private readonly IOptionsMonitor<AppConfig>? _optionsMonitor;
+        
+        private static readonly JsonSerializerOptions _jsonOptions = new()
+        {
+            WriteIndented = true,
+            PropertyNameCaseInsensitive = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
 
-        // ¹¹Ôìº¯Êı£ºÈ·±£ÅäÖÃÄ¿Â¼´æÔÚ£¬²¢×¢Èë logger Óë¿ÉÑ¡µÄ IOptionsMonitor
         public FileConfigRepository(ILogger<FileConfigRepository> logger, IOptionsMonitor<AppConfig>? optionsMonitor = null)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _optionsMonitor = optionsMonitor;
 
-            // ³¢ÊÔ´´½¨ÅäÖÃÄ¿Â¼
             try
             {
                 Directory.CreateDirectory(CONFIG_DIR);
             }
             catch (Exception ex)
             {
-                // ¼ÇÂ¼µ«²»Å×³ö
                 _logger.LogWarning(ex, "Failed to create config directory {Dir}", CONFIG_DIR);
             }
         }
 
         /// <summary>
-        /// Òì²½¼ÓÔØÓ¦ÓÃÅäÖÃ£¬Èç¹ûÒÑ»º´æÔòÖ±½Ó·µ»Ø»º´æ
-        /// ·ñÔòÓÅÏÈ´Ó´ÅÅÌÎÄ¼ş¶ÁÈ¡£¬Èô²»´æÔÚÔò´Ó IOptionsMonitor »òÄ¬ÈÏÖµ¹¹Ôì
+        /// å¼‚æ­¥åŠ è½½åº”ç”¨é…ç½®ï¼šä¼˜å…ˆä» JSON æ–‡ä»¶è¯»å–ï¼Œæ”¯æŒæ—§æ ¼å¼è¿ç§»
         /// </summary>
         public async Task<AppConfig> LoadAsync()
         {
             if (_cachedConfig != null)
                 return _cachedConfig;
 
-            // Èç¹ûÓĞ appsettings ÅäÖÃÔòÊ¹ÓÃËü×÷ÎªÄ¬ÈÏ
-            var optionsConfig = _optionsMonitor?.CurrentValue;
-
-            var settings = optionsConfig?.ConnectionSettings ?? new ConnectionConfig
+            _cachedConfig = new AppConfig();
+            
+            // å°è¯•ä»æ–°çš„ JSON æ ¼å¼åŠ è½½
+            var jsonPath = Path.Combine(CONFIG_DIR, AppConstants.ConfigFiles.DevicesConfig);
+            if (File.Exists(jsonPath))
             {
-                BaudRate = AppConstants.Defaults.BaudRate,
-                DataBits = AppConstants.Defaults.DataBits
-            };
+                try
+                {
+                    var json = await File.ReadAllTextAsync(jsonPath);
+                    var devicesJson = JsonSerializer.Deserialize<DevicesConfigJson>(json, _jsonOptions);
+                    if (devicesJson != null)
+                    {
+                        ApplyJsonToConfig(_cachedConfig, devicesJson);
+                        _logger.LogInformation("Loaded devices config from JSON");
+                        return _cachedConfig;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to load JSON config, falling back to defaults");
+                }
+            }
 
-            NormalizeConnection(settings);
-
-            _cachedConfig = new AppConfig
-            {
-                SelectedPort = optionsConfig?.SelectedPort ?? await LoadFileAsync(AppConstants.ConfigFiles.SerialPort, ""),
-                IsPortLocked = optionsConfig?.IsPortLocked ?? (await LoadFileAsync(AppConstants.ConfigFiles.LockState, "false") == "true"),
-                DeviceName = optionsConfig?.DeviceName ?? await LoadFileAsync(AppConstants.ConfigFiles.DeviceName, AppConstants.Defaults.DeviceName),
-                ConnectionSettings = settings
-            };
-
+            // å¦‚æœæ²¡æœ‰ JSON æ–‡ä»¶ï¼Œå°è¯•ä»æ—§æ ¼å¼è¿ç§»ï¼ˆä»… FCC1ï¼‰
+            await MigrateFromOldFormat(_cachedConfig);
+            
             return _cachedConfig;
         }
 
-        private void NormalizeConnection(ConnectionConfig config)
+        /// <summary>
+        /// ä»æ—§æ ¼å¼é…ç½®æ–‡ä»¶è¿ç§»æ•°æ®ï¼ˆå…¼å®¹æ€§ï¼‰
+        /// </summary>
+        private async Task MigrateFromOldFormat(AppConfig config)
         {
-            try
+            var oldPort = await LoadFileAsync(AppConstants.ConfigFiles.SerialPort, "");
+            var oldLock = await LoadFileAsync(AppConstants.ConfigFiles.LockState, "false") == "true";
+            var oldName = await LoadFileAsync(AppConstants.ConfigFiles.DeviceName, "FCC1ç”µæº");
+
+            if (!string.IsNullOrEmpty(oldPort))
             {
-                if (!Enum.IsDefined(typeof(Parity), config.Parity))
-                {
-                    _logger.LogWarning("Invalid Parity value {Parity}, falling back to None", config.Parity);
-                    config.Parity = Parity.None;
-                }
-
-                if (!Enum.IsDefined(typeof(StopBits), config.StopBits))
-                {
-                    _logger.LogWarning("Invalid StopBits value {StopBits}, falling back to One", config.StopBits);
-                    config.StopBits = StopBits.One;
-                }
-
-                if (config.Encoding == null)
-                {
-                    config.Encoding = Encoding.UTF8;
-                }
-
-                config.NormalizeWithDefaults();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Error normalizing connection settings, applying defaults");
-                config.Parity = Parity.None;
-                config.StopBits = StopBits.One;
-                config.Encoding = Encoding.UTF8;
-                config.BaudRate = AppConstants.Defaults.BaudRate;
-                config.DataBits = AppConstants.Defaults.DataBits;
-                config.ReadTimeout = 2000;
-                config.WriteTimeout = 2000;
+                var fcc1 = config.GetDeviceConfig(DeviceType.FCC1);
+                fcc1.SelectedPort = oldPort;
+                fcc1.IsPortLocked = oldLock;
+                fcc1.DeviceName = oldName;
+                
+                _logger.LogInformation("Migrated old config format to new JSON format");
+                
+                // ä¿å­˜ä¸ºæ–°æ ¼å¼
+                await SaveAsync(config);
             }
         }
 
         /// <summary>
-        /// Òì²½±£´æÓ¦ÓÃÅäÖÃµ½ÎÄ¼ş£¬²¢¸üĞÂ»º´æ
+        /// å°† JSON é…ç½®åº”ç”¨åˆ° AppConfig
+        /// </summary>
+        private void ApplyJsonToConfig(AppConfig config, DevicesConfigJson json)
+        {
+            ApplyDeviceJson(config.GetDeviceConfig(DeviceType.FCC1), json.FCC1, "FCC1ç”µæº");
+            ApplyDeviceJson(config.GetDeviceConfig(DeviceType.FCC2), json.FCC2, "FCC2ç”µæº");
+            ApplyDeviceJson(config.GetDeviceConfig(DeviceType.FCC3), json.FCC3, "FCC3ç”µæº");
+            ApplyDeviceJson(config.GetDeviceConfig(DeviceType.HIL), json.HIL, "HILç”µæº");
+        }
+
+        private void ApplyDeviceJson(DeviceConfig device, DeviceConfigJson json, string defaultName)
+        {
+            device.SelectedPort = json.Port ?? string.Empty;
+            device.IsPortLocked = json.IsLocked;
+            device.DeviceName = string.IsNullOrEmpty(json.DeviceName) ? defaultName : json.DeviceName;
+            device.ConnectionSettings ??= new ConnectionConfig();
+            device.ConnectionSettings.BaudRate = json.BaudRate > 0 ? json.BaudRate : 115200;
+            device.OnCommand = string.IsNullOrEmpty(json.OnCommand) ? "ON" : json.OnCommand;
+            device.OffCommand = string.IsNullOrEmpty(json.OffCommand) ? "OFF" : json.OffCommand;
+        }
+
+        /// <summary>
+        /// å¼‚æ­¥ä¿å­˜åº”ç”¨é…ç½®åˆ° JSON æ–‡ä»¶
         /// </summary>
         public async Task SaveAsync(AppConfig config)
         {
-            // ¸üĞÂ»º´æ
             _cachedConfig = config;
 
-            // ³Ö¾Ã»¯¸÷Ïîµ½¶ÔÓ¦µÄÅäÖÃÎÄ¼ş
-            await SaveFileAsync(AppConstants.ConfigFiles.SerialPort, config.SelectedPort ?? "");
-            await SaveFileAsync(AppConstants.ConfigFiles.LockState, config.IsPortLocked.ToString().ToLower());
-            await SaveFileAsync(AppConstants.ConfigFiles.DeviceName, config.DeviceName ?? AppConstants.Defaults.DeviceName);
+            var devicesJson = new DevicesConfigJson
+            {
+                FCC1 = CreateDeviceJson(config.GetDeviceConfig(DeviceType.FCC1)),
+                FCC2 = CreateDeviceJson(config.GetDeviceConfig(DeviceType.FCC2)),
+                FCC3 = CreateDeviceJson(config.GetDeviceConfig(DeviceType.FCC3)),
+                HIL = CreateDeviceJson(config.GetDeviceConfig(DeviceType.HIL))
+            };
+
+            try
+            {
+                var json = JsonSerializer.Serialize(devicesJson, _jsonOptions);
+                var jsonPath = Path.Combine(CONFIG_DIR, AppConstants.ConfigFiles.DevicesConfig);
+                await File.WriteAllTextAsync(jsonPath, json);
+                _logger.LogInformation("Saved devices config to JSON");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save devices config to JSON");
+            }
         }
 
-        /// <summary>
-        /// ÒÔ¼üÖµ·½Ê½¶ÁÈ¡ÅäÖÃÏî²¢×ª»»ÎªÖ¸¶¨ÀàĞÍ£¬¶ÁÈ¡Ê§°ÜÊ±·µ»ØÄ¬ÈÏÖµ
-        /// </summary>
+        private DeviceConfigJson CreateDeviceJson(DeviceConfig device)
+        {
+            return new DeviceConfigJson
+            {
+                Port = device.SelectedPort ?? string.Empty,
+                BaudRate = device.ConnectionSettings?.BaudRate ?? 115200,
+                IsLocked = device.IsPortLocked,
+                DeviceName = device.DeviceName ?? string.Empty,
+                OnCommand = device.OnCommand ?? "ON",
+                OffCommand = device.OffCommand ?? "OFF"
+            };
+        }
+
         public async Task<T> GetValueAsync<T>(string key, T defaultValue)
         {
             try
@@ -146,20 +233,15 @@ namespace TestTool.Data
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "GetValueAsync failed for key {Key}", key);
-                // ÔÚ×ª»»Ê§°ÜÊ±·µ»ØÌá¹©µÄÄ¬ÈÏÖµ
                 return defaultValue;
             }
         }
 
-        /// <summary>
-        /// ÒÔ¼üÖµ·½Ê½±£´æÅäÖÃÏî£¨½«Öµ×ªÎª×Ö·û´®Ğ´ÈëÎÄ¼ş£©
-        /// </summary>
         public async Task SetValueAsync<T>(string key, T value)
         {
             await SaveFileAsync(key, value?.ToString() ?? "");
         }
 
-        // Ë½ÓĞ¹¤¾ß£º´ÓÎÄ¼ş¶ÁÈ¡×Ö·û´®Öµ£¬¶ÁÈ¡Ê§°Ü·µ»ØÄ¬ÈÏÖµ
         private async Task<string> LoadFileAsync(string fileName, string defaultValue)
         {
             try
@@ -174,13 +256,11 @@ namespace TestTool.Data
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Error reading config file {File}", fileName);
-                // ºöÂÔ¶ÁÈ¡´íÎó²¢·µ»ØÄ¬ÈÏÖµ
             }
 
             return defaultValue;
         }
 
-        // Ë½ÓĞ¹¤¾ß£º½«×Ö·û´®ÖµĞ´ÈëÎÄ¼ş£¬Ğ´ÈëÊ§°ÜÊ±ºöÂÔ´íÎó
         private async Task SaveFileAsync(string fileName, string value)
         {
             try
@@ -191,7 +271,6 @@ namespace TestTool.Data
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Error writing config file {File}", fileName);
-                // ºöÂÔĞ´Èë´íÎó
             }
         }
     }

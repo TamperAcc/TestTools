@@ -3,54 +3,58 @@ using System;
 namespace TestTool.Infrastructure.Constants
 {
     /// <summary>
-    /// Ó¦ÓÃ³ÌĞò³£Á¿
+    /// åº”ç”¨ç¨‹åºå¸¸é‡
   /// </summary>
     public static class AppConstants
     {
     /// <summary>
-   /// ÅäÖÃÎÄ¼şÃû³Æ
+   /// é…ç½®æ–‡ä»¶åç§°
         /// </summary>
         public static class ConfigFiles
    {
-            // ´æ´¢´®¿ÚÃûµÄÅäÖÃÎÄ¼ş
+            // å¤šè®¾å¤‡é…ç½®æ–‡ä»¶ï¼ˆJSON æ ¼å¼ï¼‰
+            public const string DevicesConfig = "devices.json";
+            
+            // ä»¥ä¸‹ä¸ºæ—§çš„å•è®¾å¤‡é…ç½®æ–‡ä»¶ï¼ˆä¿ç•™å…¼å®¹ï¼‰
+            // å­˜å‚¨ä¸²å£åçš„é…ç½®æ–‡ä»¶
             public const string SerialPort = "serialport.config";
-            // ´æ´¢Ëø¶¨×´Ì¬µÄÅäÖÃÎÄ¼ş
+            // å­˜å‚¨é”å®šçŠ¶æ€çš„é…ç½®æ–‡ä»¶
             public const string LockState = "portlock.config";
-            // ´æ´¢Éè±¸Ãû³ÆµÄÅäÖÃÎÄ¼ş
+            // å­˜å‚¨è®¾å¤‡åç§°çš„é…ç½®æ–‡ä»¶
             public const string DeviceName = "devicename.config";
         }
 
         /// <summary>
-   /// Ä¬ÈÏÖµ
+   /// é»˜è®¤å€¼
    /// </summary>
         public static class Defaults
     {
-            // Ä¬ÈÏÉè±¸Ãû
-            public const string DeviceName = "FCC1µçÔ´";
-            // Ä¬ÈÏ²¨ÌØÂÊ
+            // é»˜è®¤è®¾å¤‡å
+            public const string DeviceName = "FCC1ç”µæº";
+            // é»˜è®¤æ³¢ç‰¹ç‡
             public const int BaudRate = 115200;
-          // Ä¬ÈÏÊı¾İÎ»
+          // é»˜è®¤æ•°æ®ä½
           public const int DataBits = 8;
         }
 
    /// <summary>
-   /// Éè±¸ÃüÁî
+   /// è®¾å¤‡å‘½ä»¤
   /// </summary>
       public static class Commands
         {
-     // ¿ª»úÃüÁî
+     // å¼€æœºå‘½ä»¤
      public const string PowerOn = "ON";
-            // ¹Ø»úÃüÁî
+            // å…³æœºå‘½ä»¤
             public const string PowerOff = "OFF";
  }
 
         /// <summary>
-  /// UIÉèÖÃ
+  /// UIè®¾ç½®
         /// </summary>
         public static class UI
         {
-       // ´°¿Ú±ß½Ç¿ÉÍÏ×§ÇøÓò´óĞ¡£¨ÏñËØ£©
-       public const int ResizeHandleSize = 10;
+       // çª—å£è¾¹è§’å¯æ‹–æ‹½åŒºåŸŸå¤§å°ï¼ˆåƒç´ ï¼‰
+              public const int ResizeHandleSize = 15;
      }
     }
 }

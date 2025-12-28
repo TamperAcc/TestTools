@@ -3,85 +3,111 @@ using System;
 namespace TestTool.Business.Enums
 {
     /// <summary>
-    /// ����״̬ö�٣����ڱ�ʾ�����������̸��׶�
+    /// 连接状态枚举，用于表示串口连接流程各阶段
     /// </summary>
     public enum ConnectionState
     {
         /// <summary>
-        /// δ����״̬
+        /// 未连接状态
         /// </summary>
         Disconnected = 0,
 
         /// <summary>
-        /// ��������
+        /// 正在连接
         /// </summary>
         Connecting = 1,
 
         /// <summary>
-        /// ������
+        /// 已连接
         /// </summary>
         Connected = 2,
 
         /// <summary>
-        /// ���ڶϿ�
+        /// 正在断开
         /// </summary>
         Disconnecting = 3,
 
         /// <summary>
-        /// ����״̬
+        /// 错误状态
         /// </summary>
         Error = 4
     }
 
     /// <summary>
-    /// �豸��Դ״̬ö��
+    /// 设备电源状态枚举
     /// </summary>
     public enum DevicePowerState
     {
         /// <summary>
-        /// δ֪��δ��ʼ��
+        /// 未知或未初始化
         /// </summary>
         Unknown = 0,
 
         /// <summary>
-        /// ��Դ�ر�
+        /// 电源关闭
         /// </summary>
         Off = 1,
 
         /// <summary>
-        /// ��Դ��
+        /// 电源打开
         /// </summary>
         On = 2
     }
 
     /// <summary>
-    /// �豸�߲�״̬��ҵ�����壩����ʾ�豸���幤�����
+    /// 设备高层状态（业务意义），表示设备整体工作情况
     /// </summary>
     public enum DeviceState
     {
         /// <summary>
-        /// �豸����
+        /// 设备离线
         /// </summary>
         Offline = 0,
 
         /// <summary>
-        /// �豸����
+        /// 设备在线
         /// </summary>
         Online = 1,
 
         /// <summary>
-        /// �豸׼������
+        /// 设备准备就绪
         /// </summary>
         Ready = 2,
 
         /// <summary>
-        /// �豸æ
+        /// 设备忙
         /// </summary>
         Busy = 3,
 
         /// <summary>
-        /// �豸����
+        /// 设备错误
         /// </summary>
         Error = 4
+    }
+
+    /// <summary>
+    /// 设备类型枚举：标识不同的电源设备
+    /// </summary>
+    public enum DeviceType
+    {
+        /// <summary>
+        /// FCC1 电源
+        /// </summary>
+        FCC1 = 0,
+
+        /// <summary>
+        /// FCC2 电源
+        /// </summary>
+        FCC2 = 1,
+
+        /// <summary>
+        /// FCC3 电源
+        /// </summary>
+        FCC3 = 2,
+
+        /// <summary>
+        /// HIL 电源
+        /// </summary>
+        HIL = 3
     }
 }

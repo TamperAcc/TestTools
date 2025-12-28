@@ -28,6 +28,10 @@
     <Compile Remove="Test Tool.Tests\**\*.cs" />
     <EmbeddedResource Remove="Test Tool.Tests\**\*" />
     <None Include="Test Tool.Tests\**\*" />
+    <!-- Exclude Backups folder from compilation -->
+    <Compile Remove="Backups\**\*.cs" />
+    <EmbeddedResource Remove="Backups\**\*" />
+    <None Include="Backups\**\*" />
   </ItemGroup>
 
   <ItemGroup>
