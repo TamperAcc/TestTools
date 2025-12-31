@@ -1,10 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
-    <UseWindowsForms>true</UseWindowsForms>
+    <UseWindowsForms>false</UseWindowsForms>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>TestTool</RootNamespace>
     <AssemblyName>TestTool</AssemblyName>
@@ -20,11 +21,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Program.cs" />
     <!-- Prevent benchmark project sources from being compiled into the main WinForms app -->
     <Compile Remove="BenchmarkSuite1\**\*.cs" />
+    <Compile Remove="WinFormsApp3.Tests\**" />
     <EmbeddedResource Remove="BenchmarkSuite1\**\*" />
     <None Include="BenchmarkSuite1\**\*" />
     <!-- Exclude test project sources from main app build -->
+    <Compile Remove="TestTool.Tests\**\*.cs" />
+    <EmbeddedResource Remove="TestTool.Tests\**\*" />
+    <None Include="TestTool.Tests\**\*" />
     <Compile Remove="Test Tool.Tests\**\*.cs" />
     <EmbeddedResource Remove="Test Tool.Tests\**\*" />
     <None Include="Test Tool.Tests\**\*" />
@@ -32,13 +38,59 @@
     <Compile Remove="Backups\**\*.cs" />
     <EmbeddedResource Remove="Backups\**\*" />
     <None Include="Backups\**\*" />
+    <!-- Exclude core interfaces/models compiled in TestTool.Core -->
+    <Compile Remove="Business\Enums\DeviceEnums.cs" />
+    <Compile Remove="Business\Models\DeviceModels.cs" />
+    <Compile Remove="Business\Models\ProtocolModels.cs" />
+    <Compile Remove="Business\Events\DeviceEventArgs.cs" />
+    <Compile Remove="Business\Services\IDeviceServices.cs" />
+    <Compile Remove="Business\Services\ISerialPortAdapter.cs" />
+    <Compile Remove="Business\Services\IProtocolParser.cs" />
+    <Compile Remove="Business\Services\FactoryInterfaces.cs" />
+    <!-- Exclude business implementations and data moved to TestTool.Business -->
+    <Compile Remove="Business\**\*.cs" />
+    <Compile Remove="Data\**\*.cs" />
+    <!-- Exclude Infrastructure folder compiled in TestTool.Infrastructure -->
+    <Compile Remove="Infrastructure\**\*.cs" />
+    <EmbeddedResource Remove="Infrastructure\**\*" />
+    <!-- Exclude nested project sources to avoid duplicate compilation -->
+    <Compile Remove="TestTool.Business\**\*.cs" />
+    <EmbeddedResource Remove="TestTool.Business\**\*" />
+    <Compile Remove="TestTool.Infrastructure\**\*.cs" />
+    <EmbeddedResource Remove="TestTool.Infrastructure\**\*" />
+    <Compile Remove="TestTool.Core\**\*.cs" />
+    <EmbeddedResource Remove="TestTool.Core\**\*" />
+    <Compile Remove="obj\**\*.cs" />
+    <EmbeddedResource Remove="obj\**\*" />
+    <!-- Exclude obj-generated assembly info to avoid duplicate attributes -->
+    <Compile Remove="obj\**\*.AssemblyInfo.cs" />
+    <Compile Remove="obj\**\*.AssemblyAttributes.cs" />
+    <!-- Exclude AppConstants compiled in Business/Infrastructure layer -->
+    <Compile Remove="Infrastructure\Constants\AppConstants.cs" />
+    <!-- Exclude UI Forms now compiled in TestTool.UI project -->
+    <Compile Remove="Forms\**\*.cs" />
+    <EmbeddedResource Remove="Forms\**\*.resx" />
+    <!-- Exclude UI project sources compiled in TestTool.UI -->
+    <Compile Remove="TestTool.UI\**\*.cs" />
+    <EmbeddedResource Remove="TestTool.UI\**\*" />
+    <EmbeddedResource Remove="WinFormsApp3.Tests\**" />
+    <None Remove="WinFormsApp3.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include=".github\scripts\check_onchange.ps1" />
     <None Include=".github\workflows\ci.yml" />
     <None Include=".github\workflows\options-monitor-check.yml" />
-    <None Include="WinFormsApp3.Tests\WinFormsApp3.Tests.csproj" />
+    <None Include="TestTool.Business\TestTool.Business.csproj" />
+    <None Include="TestTool.Infrastructure\TestTool.Infrastructure.csproj" />
+    <None Include="TestTool.UI.csproj" />
+    <None Include="TestTool.UI\TestTool.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="TestTool.Core\TestTool.Core.csproj" />
+    <ProjectReference Include="TestTool.Business\TestTool.Business.csproj" />
+    <ProjectReference Include="TestTool.Infrastructure\TestTool.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

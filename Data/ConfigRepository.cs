@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Ports;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -47,6 +48,27 @@ namespace TestTool.Data
         
         [JsonPropertyName("offCommand")]
         public string OffCommand { get; set; } = "OFF";
+
+        [JsonPropertyName("monitorPosition")]
+        public MonitorPositionJson? MonitorPosition { get; set; }
+    }
+
+    /// <summary>
+    /// 打印窗口位置 JSON 模型（用于序列化）
+    /// </summary>
+    public class MonitorPositionJson
+    {
+        [JsonPropertyName("x")]
+        public int X { get; set; }
+
+        [JsonPropertyName("y")]
+        public int Y { get; set; }
+
+        [JsonPropertyName("width")]
+        public int Width { get; set; }
+
+        [JsonPropertyName("height")]
+        public int Height { get; set; }
     }
 
     /// <summary>
@@ -65,6 +87,18 @@ namespace TestTool.Data
         
         [JsonPropertyName("device4")]
         public DeviceConfigJson HIL { get; set; } = new();
+
+        /// <summary>
+        /// 主窗口位置配置
+        /// </summary>
+        [JsonPropertyName("mainWindowPosition")]
+        public MonitorPositionJson? MainWindowPosition { get; set; }
+
+        /// <summary>
+        /// 设置窗口位置配置
+        /// </summary>
+        [JsonPropertyName("settingsWindowPosition")]
+        public MonitorPositionJson? SettingsWindowPosition { get; set; }
     }
 
     /// <summary>
@@ -84,6 +118,10 @@ namespace TestTool.Data
             PropertyNameCaseInsensitive = true,
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
+
+        private readonly object _saveLock = new();
+        private DateTime _lastSaveUtc = DateTime.MinValue;
+        private const int SaveDebounceMs = 500;
 
         public FileConfigRepository(ILogger<FileConfigRepository> logger, IOptionsMonitor<AppConfig>? optionsMonitor = null)
         {
@@ -169,6 +207,26 @@ namespace TestTool.Data
             ApplyDeviceJson(config.GetDeviceConfig(DeviceType.FCC2), json.FCC2, "FCC2电源");
             ApplyDeviceJson(config.GetDeviceConfig(DeviceType.FCC3), json.FCC3, "FCC3电源");
             ApplyDeviceJson(config.GetDeviceConfig(DeviceType.HIL), json.HIL, "HIL电源");
+
+            // 读取主窗口位置配置
+            if (json.MainWindowPosition != null && json.MainWindowPosition.Width > 0 && json.MainWindowPosition.Height > 0)
+            {
+                config.MainWindowPosition = new MonitorWindowPosition(
+                    json.MainWindowPosition.X,
+                    json.MainWindowPosition.Y,
+                    json.MainWindowPosition.Width,
+                    json.MainWindowPosition.Height);
+            }
+
+            // 读取设置窗口位置配置
+            if (json.SettingsWindowPosition != null && json.SettingsWindowPosition.Width > 0 && json.SettingsWindowPosition.Height > 0)
+            {
+                config.SettingsWindowPosition = new MonitorWindowPosition(
+                    json.SettingsWindowPosition.X,
+                    json.SettingsWindowPosition.Y,
+                    json.SettingsWindowPosition.Width,
+                    json.SettingsWindowPosition.Height);
+            }
         }
 
         private void ApplyDeviceJson(DeviceConfig device, DeviceConfigJson json, string defaultName)
@@ -180,7 +238,30 @@ namespace TestTool.Data
             device.ConnectionSettings.BaudRate = json.BaudRate > 0 ? json.BaudRate : 115200;
             device.OnCommand = string.IsNullOrEmpty(json.OnCommand) ? "ON" : json.OnCommand;
             device.OffCommand = string.IsNullOrEmpty(json.OffCommand) ? "OFF" : json.OffCommand;
-        }
+            
+            // 如果配置的串口不存在，回退为空并解除锁定，避免占用无效端口
+            if (!string.IsNullOrEmpty(device.SelectedPort))
+            {
+                var exists = SerialPort.GetPortNames()
+                    .Any(p => string.Equals(p, device.SelectedPort, StringComparison.OrdinalIgnoreCase));
+                if (!exists)
+                {
+                    _logger.LogInformation("Configured port {Port} not found, fallback to empty for device {Device}", device.SelectedPort, device.DeviceName);
+                    device.SelectedPort = string.Empty;
+                    device.IsPortLocked = false;
+                }
+            }
+                
+             // 读取窗口位置配置
+             if (json.MonitorPosition != null && json.MonitorPosition.Width > 0 && json.MonitorPosition.Height > 0)
+             {
+                 device.MonitorPosition = new MonitorWindowPosition(
+                     json.MonitorPosition.X,
+                     json.MonitorPosition.Y,
+                     json.MonitorPosition.Width,
+                     json.MonitorPosition.Height);
+             }
+         }
 
         /// <summary>
         /// 异步保存应用配置到 JSON 文件
@@ -189,6 +270,18 @@ namespace TestTool.Data
         {
             _cachedConfig = config;
 
+            // 简单去抖：500ms 内重复保存则跳过
+            lock (_saveLock)
+            {
+                var now = DateTime.UtcNow;
+                if ((now - _lastSaveUtc).TotalMilliseconds < SaveDebounceMs)
+                {
+                    _logger.LogInformation("SaveAsync skipped by debounce window {Window}ms", SaveDebounceMs);
+                    return;
+                }
+                _lastSaveUtc = now;
+            }
+
             var devicesJson = new DevicesConfigJson
             {
                 FCC1 = CreateDeviceJson(config.GetDeviceConfig(DeviceType.FCC1)),
@@ -196,6 +289,30 @@ namespace TestTool.Data
                 FCC3 = CreateDeviceJson(config.GetDeviceConfig(DeviceType.FCC3)),
                 HIL = CreateDeviceJson(config.GetDeviceConfig(DeviceType.HIL))
             };
+
+            // 保存主窗口位置配置
+            if (config.MainWindowPosition != null && config.MainWindowPosition.IsValid)
+            {
+                devicesJson.MainWindowPosition = new MonitorPositionJson
+                {
+                    X = config.MainWindowPosition.X,
+                    Y = config.MainWindowPosition.Y,
+                    Width = config.MainWindowPosition.Width,
+                    Height = config.MainWindowPosition.Height
+                };
+            }
+
+            // 保存设置窗口位置配置
+            if (config.SettingsWindowPosition != null && config.SettingsWindowPosition.IsValid)
+            {
+                devicesJson.SettingsWindowPosition = new MonitorPositionJson
+                {
+                    X = config.SettingsWindowPosition.X,
+                    Y = config.SettingsWindowPosition.Y,
+                    Width = config.SettingsWindowPosition.Width,
+                    Height = config.SettingsWindowPosition.Height
+                };
+            }
 
             try
             {
@@ -212,7 +329,7 @@ namespace TestTool.Data
 
         private DeviceConfigJson CreateDeviceJson(DeviceConfig device)
         {
-            return new DeviceConfigJson
+            var json = new DeviceConfigJson
             {
                 Port = device.SelectedPort ?? string.Empty,
                 BaudRate = device.ConnectionSettings?.BaudRate ?? 115200,
@@ -221,6 +338,20 @@ namespace TestTool.Data
                 OnCommand = device.OnCommand ?? "ON",
                 OffCommand = device.OffCommand ?? "OFF"
             };
+
+            // 保存窗口位置配置
+            if (device.MonitorPosition != null && device.MonitorPosition.IsValid)
+            {
+                json.MonitorPosition = new MonitorPositionJson
+                {
+                    X = device.MonitorPosition.X,
+                    Y = device.MonitorPosition.Y,
+                    Width = device.MonitorPosition.Width,
+                    Height = device.MonitorPosition.Height
+                };
+            }
+
+            return json;
         }
 
         public async Task<T> GetValueAsync<T>(string key, T defaultValue)

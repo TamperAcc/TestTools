@@ -56,6 +56,10 @@ namespace TestTool
             btnOnHIL = new Button();
             btnOffHIL = new Button();
 
+            // 一键连接/断开按钮
+            btnConnectAll = new Button();
+            btnDisconnectAll = new Button();
+
             menuStrip1.SuspendLayout();
             SuspendLayout();
 
@@ -297,10 +301,39 @@ namespace TestTool
             btnConnectHIL.UseVisualStyleBackColor = true;
             btnConnectHIL.Click += btnConnectHIL_Click;
 
+            // ========== 一键操作按钮行 ==========
+            int row5Y = startY + rowHeight * 4 + 10;
+
+            // 
+            // btnConnectAll
+            // 
+            btnConnectAll.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnConnectAll.Location = new Point(398, row5Y);
+            btnConnectAll.Name = "btnConnectAll";
+            btnConnectAll.Size = new Size(90, 32);
+            btnConnectAll.TabIndex = 17;
+            btnConnectAll.Text = "一键连接";
+            btnConnectAll.BackColor = Color.LightGreen;
+            btnConnectAll.UseVisualStyleBackColor = false;
+            btnConnectAll.Click += btnConnectAll_Click;
+
+            // 
+            // btnDisconnectAll
+            // 
+            btnDisconnectAll.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnDisconnectAll.Location = new Point(498, row5Y);
+            btnDisconnectAll.Name = "btnDisconnectAll";
+            btnDisconnectAll.Size = new Size(90, 32);
+            btnDisconnectAll.TabIndex = 18;
+            btnDisconnectAll.Text = "一键断开";
+            btnDisconnectAll.BackColor = Color.LightCoral;
+            btnDisconnectAll.UseVisualStyleBackColor = false;
+            btnDisconnectAll.Click += btnDisconnectAll_Click;
+
             // 
             // MainForm
             // 
-            ClientSize = new Size(600, 220);
+            ClientSize = new Size(600, 265);
             Controls.Add(menuStrip1);
             // FCC1
             Controls.Add(lblStatusFCC1);
@@ -322,12 +355,15 @@ namespace TestTool
             Controls.Add(btnOnHIL);
             Controls.Add(btnOffHIL);
             Controls.Add(btnConnectHIL);
+            // 一键操作按钮
+            Controls.Add(btnConnectAll);
+            Controls.Add(btnDisconnectAll);
 
             FormBorderStyle = FormBorderStyle.Sizable;
             MainMenuStrip = menuStrip1;
             MaximizeBox = true;
             MinimizeBox = true;
-            MinimumSize = new Size(500, 260);
+            MinimumSize = new Size(500, 305);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "电源控制工具";
@@ -368,5 +404,9 @@ namespace TestTool
         private Button btnConnectHIL;
         private Button btnOnHIL;
         private Button btnOffHIL;
+
+        // 一键操作按钮
+        private Button btnConnectAll;
+        private Button btnDisconnectAll;
     }
 }

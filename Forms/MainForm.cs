@@ -8,30 +8,16 @@ using Microsoft.Extensions.Options;
 using TestTool.Business.Enums;
 using TestTool.Business.Models;
 using TestTool.Business.Services;
+using TestTool.Forms.Base;
 using TestTool.Infrastructure.Constants;
 using TestTool.Infrastructure.Helpers;
 
 namespace TestTool
 {
     /// <summary>
-    /// 监视器状态变化事件参数
-    /// </summary>
-    public class MonitorStateChangedEventArgs : EventArgs
-    {
-        public DeviceType DeviceType { get; }
-        public bool IsOpen { get; }
-
-        public MonitorStateChangedEventArgs(DeviceType deviceType, bool isOpen)
-        {
-            DeviceType = deviceType;
-            IsOpen = isOpen;
-        }
-    }
-
-    /// <summary>
     /// 串口工具主窗体 - 多设备版本
     /// </summary>
-    public partial class MainForm : Form
+    public partial class MainForm : ResizableFormBase, IMainFormUi
     {
         // 多设备协调器
         private readonly IMultiDeviceCoordinator _coordinator = null!;
@@ -48,9 +34,6 @@ namespace TestTool
 
         // 设置窗口实例
         private MultiDeviceSettingsForm? _settingsForm;
-
-        // 用于自定义窗体可缩放区域的把手尺寸常量
-        private const int RESIZE_HANDLE_SIZE = AppConstants.UI.ResizeHandleSize;
 
         // 设备控件映射（便于统一处理）
         private Dictionary<DeviceType, (Label status, Button connect, Button on, Button off)> _deviceControls = null!;
@@ -240,6 +223,55 @@ namespace TestTool
 
         #endregion
 
+        #region 一键连接/断开事件
+
+        private void btnConnectAll_Click(object? sender, EventArgs e)
+        {
+            btnConnectAll.Enabled = false;
+            
+            foreach (DeviceType deviceType in Enum.GetValues<DeviceType>())
+            {
+                var config = _appConfig.GetDeviceConfig(deviceType);
+                if (!_deviceControls.TryGetValue(deviceType, out var controls))
+                    continue;
+
+                if (_coordinator.IsConnected(deviceType))
+                    continue;
+
+                if (!config.IsPortLocked)
+                {
+                    UIHelper.SetStatusLabel(controls.status, ConnectionState.Error, config.DeviceName, "请锁定串口配置");
+                }
+            }
+
+            _ = _coordinator.ConnectAllAsync().ContinueWith(t =>
+            {
+                if (t.Exception != null)
+                {
+                    _logger?.LogError(t.Exception, "Error in ConnectAllAsync");
+                }
+            }, TaskScheduler.Default);
+
+            btnConnectAll.Enabled = true;
+        }
+
+        private void btnDisconnectAll_Click(object? sender, EventArgs e)
+        {
+            btnDisconnectAll.Enabled = false;
+
+            _ = _coordinator.DisconnectAllAsync().ContinueWith(t =>
+            {
+                if (t.Exception != null)
+                {
+                    _logger?.LogError(t.Exception, "Error in DisconnectAllAsync");
+                }
+            }, TaskScheduler.Default);
+
+            btnDisconnectAll.Enabled = true;
+        }
+
+        #endregion
+
         #region 事件处理
 
         // 连接状态变化
@@ -381,6 +413,36 @@ namespace TestTool
             return monitor.IsHandleCreated && monitor.Visible;
         }
 
+        /// <summary>
+        /// 打开所有设备的打印窗口
+        /// </summary>
+        public void OpenAllMonitors()
+        {
+            foreach (DeviceType deviceType in Enum.GetValues<DeviceType>())
+            {
+                if (!IsMonitorOpen(deviceType))
+                {
+                    EnsureMonitorForm(deviceType);
+                    _monitorForms[deviceType]!.Show(this);
+                    MonitorStateChanged?.Invoke(this, new MonitorStateChangedEventArgs(deviceType, true));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 关闭所有设备的打印窗口
+        /// </summary>
+        public void CloseAllMonitors()
+        {
+            foreach (var kvp in _monitorForms)
+            {
+                if (kvp.Value != null && !kvp.Value.IsDisposed && kvp.Value.Visible)
+                {
+                    kvp.Value.Close();
+                }
+            }
+        }
+
         #endregion
 
         #region 设置窗口
@@ -389,7 +451,8 @@ namespace TestTool
         {
             if (_settingsForm == null || _settingsForm.IsDisposed)
             {
-                _settingsForm = new MultiDeviceSettingsForm(_appConfig, this);
+                var presenter = new MultiDeviceSettingsPresenter(_coordinator, this, null);
+                _settingsForm = new MultiDeviceSettingsForm(_appConfig, this, presenter);
                 _settingsForm.SettingsConfirmed += async (_, _) => await ApplySettingsFromDialogAsync();
                 _settingsForm.DeviceSettingsChanged += async (_, args) => await ApplyDeviceSettingsAsync(args);
                 _settingsForm.FormClosed += (_, _) => _settingsForm = null;
@@ -462,46 +525,6 @@ namespace TestTool
         #endregion
 
         #region 窗口管理
-
-        protected override void WndProc(ref Message m)
-        {
-            const int WM_NCHITTEST = 0x0084;
-            const int HTLEFT = 10;
-            const int HTRIGHT = 11;
-            const int HTTOP = 12;
-            const int HTTOPLEFT = 13;
-            const int HTTOPRIGHT = 14;
-            const int HTBOTTOM = 15;
-            const int HTBOTTOMLEFT = 16;
-            const int HTBOTTOMRIGHT = 17;
-
-            if (m.Msg == WM_NCHITTEST)
-            {
-                base.WndProc(ref m);
-                var cursor = this.PointToClient(Cursor.Position);
-
-                if (cursor.X <= RESIZE_HANDLE_SIZE && cursor.Y <= RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTTOPLEFT;
-                else if (cursor.X >= this.ClientSize.Width - RESIZE_HANDLE_SIZE && cursor.Y <= RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTTOPRIGHT;
-                else if (cursor.X <= RESIZE_HANDLE_SIZE && cursor.Y >= this.ClientSize.Height - RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTBOTTOMLEFT;
-                else if (cursor.X >= this.ClientSize.Width - RESIZE_HANDLE_SIZE && cursor.Y >= this.ClientSize.Height - RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTBOTTOMRIGHT;
-                else if (cursor.X <= RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTLEFT;
-                else if (cursor.X >= this.ClientSize.Width - RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTRIGHT;
-                else if (cursor.Y <= RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTTOP;
-                else if (cursor.Y >= this.ClientSize.Height - RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTBOTTOM;
-            }
-            else
-            {
-                base.WndProc(ref m);
-            }
-        }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {

@@ -20,7 +20,9 @@ namespace TestTool.Tests
 
             var logger = new Mock<ILogger<PowerDeviceController>>();
             var parser = new Mock<IProtocolParser>();
-            var controller = new PowerDeviceController(logger.Object, parser.Object);
+            var parserFactory = new Mock<IProtocolParserFactory>();
+            parserFactory.Setup(f => f.Create()).Returns(parser.Object);
+            var controller = new PowerDeviceController(logger.Object, parserFactory.Object);
             await controller.InitializeAsync(serial.Object);
 
             DeviceStatusChangedEventArgs? captured = null;
@@ -42,7 +44,9 @@ namespace TestTool.Tests
             var serial = new Mock<ISerialPortService>();
             var logger = new Mock<ILogger<PowerDeviceController>>();
             var parser = new Mock<IProtocolParser>();
-            var controller = new PowerDeviceController(logger.Object, parser.Object);
+            var parserFactory = new Mock<IProtocolParserFactory>();
+            parserFactory.Setup(f => f.Create()).Returns(parser.Object);
+            var controller = new PowerDeviceController(logger.Object, parserFactory.Object);
             controller.InitializeAsync(serial.Object);
 
             serial.Raise(s => s.ConnectionStateChanged += null, new ConnectionStateChangedEventArgs(ConnectionState.Connected, ConnectionState.Disconnected, "lost"));
@@ -60,8 +64,10 @@ namespace TestTool.Tests
             {
                 new ParsedFrame { Raw = "status on", PowerState = DevicePowerState.On, Command = "STATUS" }
             });
+            var parserFactory = new Mock<IProtocolParserFactory>();
+            parserFactory.Setup(f => f.Create()).Returns(parser.Object);
 
-            var controller = new PowerDeviceController(logger.Object, parser.Object);
+            var controller = new PowerDeviceController(logger.Object, parserFactory.Object);
             controller.InitializeAsync(serial.Object);
 
             DeviceStatusChangedEventArgs? captured = null;

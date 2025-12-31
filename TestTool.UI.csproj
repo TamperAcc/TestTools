@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>TestTool</RootNamespace>
+    <AssemblyName>TestTool.UI</AssemblyName>
+    <StartupObject>TestTool.UI.UiProgram</StartupObject>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" Version="9.0.11" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="8.0.0" />
+    <PackageReference Include="Polly" Version="8.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\\Forms\\**\\*.cs" Link="Forms\\%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\\Forms\\**\\*.resx" Link="Forms\\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TestTool.Core\TestTool.Core.csproj" />
+    <ProjectReference Include="..\TestTool.Business\TestTool.Business.csproj" />
+    <ProjectReference Include="..\TestTool.Infrastructure\TestTool.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

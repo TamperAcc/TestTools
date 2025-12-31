@@ -28,9 +28,9 @@ namespace TestTool.Tests
 
             var options = new StubOptionsMonitor(new AppConfig { RetryPolicy = new RetryPolicyConfig { ConnectRetries = 3 } });
             var logger = new Mock<ILogger<SerialPortService>>();
-            var sp = new StubServiceProvider(adapter);
+            var factory = new StubAdapterFactory(adapter);
 
-            var svc = new SerialPortService(logger.Object, sp, options);
+            var svc = new SerialPortService(logger.Object, factory, options);
             var result = await svc.ConnectAsync(new ConnectionConfig("COM1"));
 
             Assert.True(result);
@@ -50,9 +50,9 @@ namespace TestTool.Tests
 
             var options = new StubOptionsMonitor(new AppConfig { RetryPolicy = new RetryPolicyConfig { ConnectRetries = 1 } });
             var logger = new Mock<ILogger<SerialPortService>>();
-            var sp = new StubServiceProvider(adapter);
+            var factory = new StubAdapterFactory(adapter);
 
-            var svc = new SerialPortService(logger.Object, sp, options);
+            var svc = new SerialPortService(logger.Object, factory, options);
 
             // reload with higher retries
             options.TriggerChange(new AppConfig { RetryPolicy = new RetryPolicyConfig { ConnectRetries = 3 } });
@@ -77,8 +77,8 @@ namespace TestTool.Tests
 
             var options = new StubOptionsMonitor(new AppConfig { RetryPolicy = new RetryPolicyConfig { SendRetries = 2 } });
             var logger = new Mock<ILogger<SerialPortService>>();
-            var sp = new StubServiceProvider(adapter);
-            var svc = new SerialPortService(logger.Object, sp, options);
+            var factory = new StubAdapterFactory(adapter);
+            var svc = new SerialPortService(logger.Object, factory, options);
 
             // ensure connected state
             var connected = await svc.ConnectAsync(new ConnectionConfig("COM1"));
@@ -91,11 +91,52 @@ namespace TestTool.Tests
             Assert.Equal(2, adapter.WriteAttempts);
         }
 
-        private class StubServiceProvider : IServiceProvider
+        [Fact]
+        public async Task ConnectAsync_StateChangedHandlerThrows_ServiceStillConnects()
+        {
+            var adapter = new FakeAdapter();
+            var options = new StubOptionsMonitor(new AppConfig());
+            var logger = new Mock<ILogger<SerialPortService>>();
+            var factory = new StubAdapterFactory(adapter);
+            var svc = new SerialPortService(logger.Object, factory, options);
+
+            var throwCount = 0;
+            svc.ConnectionStateChanged += (_, __) => throwCount++;
+
+            var ok = await svc.ConnectAsync(new ConnectionConfig("COM1"));
+
+            Assert.True(ok);
+            Assert.True(svc.IsConnected);
+            Assert.True(throwCount > 0);
+        }
+
+        [Fact]
+        public async Task DataReceived_HandlerThrows_ServiceContinues()
+        {
+            var adapter = new FakeAdapter();
+            adapter.OpenBehavior = () => adapter.IsOpen = true;
+            var options = new StubOptionsMonitor(new AppConfig());
+            var logger = new Mock<ILogger<SerialPortService>>();
+            var factory = new StubAdapterFactory(adapter);
+            var svc = new SerialPortService(logger.Object, factory, options);
+
+            await svc.ConnectAsync(new ConnectionConfig("COM1"));
+
+            var handled = false;
+            svc.DataReceived += (_, __) => { handled = true; throw new InvalidOperationException("boom"); };
+
+            // 触发 DataReceived
+            adapter.WriteLine("TEST");
+
+            Assert.True(handled); // 事件触发过
+            Assert.True(svc.IsConnected); // 服务保持连接
+        }
+
+        private class StubAdapterFactory : ISerialPortAdapterFactory
         {
             private readonly ISerialPortAdapter _adapter;
-            public StubServiceProvider(ISerialPortAdapter adapter) => _adapter = adapter;
-            public object? GetService(Type serviceType) => serviceType == typeof(ISerialPortAdapter) ? _adapter : null;
+            public StubAdapterFactory(ISerialPortAdapter adapter) => _adapter = adapter;
+            public ISerialPortAdapter Create(ConnectionConfig config) => _adapter;
         }
 
         private class StubOptionsMonitor : IOptionsMonitor<AppConfig>
@@ -156,7 +197,12 @@ namespace TestTool.Tests
             }
 
             public void Close() => IsOpen = false;
-            public void WriteLine(string text) => WriteBehavior?.Invoke(text);
+            public void WriteLine(string text)
+            {
+                WriteBehavior?.Invoke(text);
+                var args = (SerialDataReceivedEventArgs?)Activator.CreateInstance(typeof(SerialDataReceivedEventArgs), true, new object?[] { SerialData.Chars });
+                DataReceived?.Invoke(this, args!);
+            }
             public string ReadExisting() => string.Empty;
             public void Dispose() { }
         }
