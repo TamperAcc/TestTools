@@ -49,9 +49,21 @@ namespace TestTool.Data
         [JsonPropertyName("offCommand")]
         public string OffCommand { get; set; } = "OFF";
 
-        [JsonPropertyName("monitorPosition")]
-        public MonitorPositionJson? MonitorPosition { get; set; }
-    }
+        /// <summary>
+        /// 是否合并到总监视窗
+        /// </summary>
+        [JsonPropertyName("isInHost")]
+        public bool IsInHost { get; set; }
+
+        /// <summary>
+        /// 所属 Host 标识（多 Host 时使用）
+        /// </summary>
+        [JsonPropertyName("hostId")]
+        public string? HostId { get; set; }
+ 
+         [JsonPropertyName("monitorPosition")]
+         public MonitorPositionJson? MonitorPosition { get; set; }
+     }
 
     /// <summary>
     /// 打印窗口位置 JSON 模型（用于序列化）
@@ -101,10 +113,37 @@ namespace TestTool.Data
         public MonitorPositionJson? SettingsWindowPosition { get; set; }
 
         /// <summary>
+        /// 总监视窗位置配置
+        /// </summary>
+        [JsonPropertyName("monitorHostPosition")]
+        public MonitorPositionJson? MonitorHostPosition { get; set; }
+
+        /// <summary>
         /// 一键电源并发度
         /// </summary>
         [JsonPropertyName("powerConcurrency")]
         public int PowerConcurrency { get; set; } = 4;
+
+        /// <summary>
+        /// 多个 Host 配置
+        /// </summary>
+        [JsonPropertyName("hosts")]
+        public List<HostConfigJson> MonitorHosts { get; set; } = new();
+     }
+ 
+    /// <summary>
+    /// Host 配置 JSON 模型
+    /// </summary>
+    public class HostConfigJson
+    {
+        [JsonPropertyName("hostId")]
+        public string HostId { get; set; } = string.Empty;
+
+        [JsonPropertyName("position")]
+        public MonitorPositionJson? Position { get; set; }
+
+        [JsonPropertyName("devices")]
+        public List<DeviceType> Devices { get; set; } = new();
     }
 
     /// <summary>
@@ -117,18 +156,17 @@ namespace TestTool.Data
         private AppConfig? _cachedConfig;
         private readonly ILogger<FileConfigRepository> _logger;
         private readonly IOptionsMonitor<AppConfig>? _optionsMonitor;
+ 
+         private static readonly JsonSerializerOptions _jsonOptions = new()
+         {
+             WriteIndented = true,
+             PropertyNameCaseInsensitive = true,
+             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+         };
         
-        private static readonly JsonSerializerOptions _jsonOptions = new()
-        {
-            WriteIndented = true,
-            PropertyNameCaseInsensitive = true,
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-        };
-
-        private readonly object _saveLock = new();
-        private DateTime _lastSaveUtc = DateTime.MinValue;
-        private const int SaveDebounceMs = 500;
-
+        private readonly object _saveTaskLock = new();
+        private Task? _runningSaveTask;
+ 
         public FileConfigRepository(ILogger<FileConfigRepository> logger, IOptionsMonitor<AppConfig>? optionsMonitor = null)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -234,9 +272,67 @@ namespace TestTool.Data
                     json.SettingsWindowPosition.Height);
             }
 
-            // 电源并发度（最小1）
-            config.PowerConcurrency = json.PowerConcurrency > 0 ? json.PowerConcurrency : 4;
-        }
+            // 读取总监视窗位置配置（兼容单 Host）
+            if (json.MonitorHostPosition != null && json.MonitorHostPosition.Width > 0 && json.MonitorHostPosition.Height > 0)
+            {
+                config.MonitorHostPosition = new MonitorWindowPosition(
+                    json.MonitorHostPosition.X,
+                    json.MonitorHostPosition.Y,
+                    json.MonitorHostPosition.Width,
+                    json.MonitorHostPosition.Height);
+            }
+ 
+             // 电源并发度（最小1）
+             config.PowerConcurrency = json.PowerConcurrency > 0 ? json.PowerConcurrency : 4;
+            
+            // 读取多 Host 配置
+            if (json.MonitorHosts != null && json.MonitorHosts.Count > 0)
+            {
+                config.MonitorHosts.Clear();
+                foreach (var hostJson in json.MonitorHosts)
+                {
+                    var hostId = string.IsNullOrWhiteSpace(hostJson.HostId) ? Guid.NewGuid().ToString("N") : hostJson.HostId;
+                    var hostConfig = new MonitorHostConfig
+                    {
+                        HostId = hostId,
+                        Position = hostJson.Position != null && hostJson.Position.Width > 0 && hostJson.Position.Height > 0
+                            ? new MonitorWindowPosition(hostJson.Position.X, hostJson.Position.Y, hostJson.Position.Width, hostJson.Position.Height)
+                            : null,
+                        Devices = hostJson.Devices?.Distinct().ToList() ?? new List<DeviceType>()
+                    };
+
+                    config.MonitorHosts.Add(hostConfig);
+
+                    foreach (var deviceType in hostConfig.Devices)
+                    {
+                        var deviceConfig = config.GetDeviceConfig(deviceType);
+                        deviceConfig.IsMonitorInHost = true;
+                        deviceConfig.MonitorHostId = hostId;
+                    }
+                }
+            }
+            else
+            {
+                // 兼容旧字段：如果有 MonitorHostPosition，且设备标记在 Host 中，则创建单 Host
+                var devicesInHost = config.Devices.Values.Where(d => d.IsMonitorInHost).Select(d => d.DeviceType).ToList();
+                if (devicesInHost.Count > 0)
+                {
+                    var hostId = "host-default";
+                    config.MonitorHosts.Clear();
+                    config.MonitorHosts.Add(new MonitorHostConfig
+                    {
+                        HostId = hostId,
+                        Position = config.MonitorHostPosition,
+                        Devices = devicesInHost
+                    });
+
+                    foreach (var deviceType in devicesInHost)
+                    {
+                        config.GetDeviceConfig(deviceType).MonitorHostId = hostId;
+                    }
+                }
+            }
+         }
 
         private void ApplyDeviceJson(DeviceConfig device, DeviceConfigJson json, string defaultName)
         {
@@ -247,19 +343,21 @@ namespace TestTool.Data
             device.ConnectionSettings.BaudRate = json.BaudRate > 0 ? json.BaudRate : 115200;
             device.OnCommand = string.IsNullOrEmpty(json.OnCommand) ? "ON" : json.OnCommand;
             device.OffCommand = string.IsNullOrEmpty(json.OffCommand) ? "OFF" : json.OffCommand;
-            
-            // 如果配置的串口不存在，回退为空并解除锁定，避免占用无效端口
-            if (!string.IsNullOrEmpty(device.SelectedPort))
-            {
-                var exists = SerialPort.GetPortNames()
-                    .Any(p => string.Equals(p, device.SelectedPort, StringComparison.OrdinalIgnoreCase));
-                if (!exists)
-                {
-                    _logger.LogInformation("Configured port {Port} not found, fallback to empty for device {Device}", device.SelectedPort, device.DeviceName);
-                    device.SelectedPort = string.Empty;
-                    device.IsPortLocked = false;
-                }
-            }
+            device.IsMonitorInHost = json.IsInHost;
+            device.MonitorHostId = json.HostId;
+             
+             // 如果配置的串口不存在，回退为空并解除锁定，避免占用无效端口
+             if (!string.IsNullOrEmpty(device.SelectedPort))
+             {
+                 var exists = SerialPort.GetPortNames()
+                     .Any(p => string.Equals(p, device.SelectedPort, StringComparison.OrdinalIgnoreCase));
+                 if (!exists)
+                 {
+                     _logger.LogInformation("Configured port {Port} not found, fallback to empty for device {Device}", device.SelectedPort, device.DeviceName);
+                     device.SelectedPort = string.Empty;
+                     device.IsPortLocked = false;
+                 }
+             }
                 
              // 读取窗口位置配置
              if (json.MonitorPosition != null && json.MonitorPosition.Width > 0 && json.MonitorPosition.Height > 0)
@@ -279,18 +377,25 @@ namespace TestTool.Data
         {
             _cachedConfig = config;
 
-            // 简单去抖：500ms 内重复保存则跳过
-            lock (_saveLock)
+            Task saveTask;
+            lock (_saveTaskLock)
             {
-                var now = DateTime.UtcNow;
-                if ((now - _lastSaveUtc).TotalMilliseconds < SaveDebounceMs)
+                if (_runningSaveTask != null && !_runningSaveTask.IsCompleted)
                 {
-                    _logger.LogInformation("SaveAsync skipped by debounce window {Window}ms", SaveDebounceMs);
-                    return;
+                    saveTask = _runningSaveTask;
                 }
-                _lastSaveUtc = now;
+                else
+                {
+                    _runningSaveTask = PerformSaveAsync(config);
+                    saveTask = _runningSaveTask;
+                }
             }
 
+            await saveTask.ConfigureAwait(false);
+        }
+
+        private async Task PerformSaveAsync(AppConfig config)
+        {
             var devicesJson = new DevicesConfigJson
             {
                 FCC1 = CreateDeviceJson(config.GetDeviceConfig(DeviceType.FCC1)),
@@ -298,9 +403,8 @@ namespace TestTool.Data
                 FCC3 = CreateDeviceJson(config.GetDeviceConfig(DeviceType.FCC3)),
                 HIL = CreateDeviceJson(config.GetDeviceConfig(DeviceType.HIL)),
                 PowerConcurrency = config.PowerConcurrency > 0 ? config.PowerConcurrency : 4
-             };
+            };
 
-            // 保存主窗口位置配置
             if (config.MainWindowPosition != null && config.MainWindowPosition.IsValid)
             {
                 devicesJson.MainWindowPosition = new MonitorPositionJson
@@ -312,7 +416,6 @@ namespace TestTool.Data
                 };
             }
 
-            // 保存设置窗口位置配置
             if (config.SettingsWindowPosition != null && config.SettingsWindowPosition.IsValid)
             {
                 devicesJson.SettingsWindowPosition = new MonitorPositionJson
@@ -324,11 +427,26 @@ namespace TestTool.Data
                 };
             }
 
+            var firstHostPos = config.MonitorHosts.FirstOrDefault()?.Position;
+            var hostPositionToSave = firstHostPos ?? config.MonitorHostPosition;
+            if (hostPositionToSave != null && hostPositionToSave.IsValid)
+            {
+                devicesJson.MonitorHostPosition = new MonitorPositionJson
+                {
+                    X = hostPositionToSave.X,
+                    Y = hostPositionToSave.Y,
+                    Width = hostPositionToSave.Width,
+                    Height = hostPositionToSave.Height
+                };
+            }
+
+            devicesJson.MonitorHosts = BuildHostsJson(config);
+
             try
             {
                 var json = JsonSerializer.Serialize(devicesJson, _jsonOptions);
                 var jsonPath = Path.Combine(CONFIG_DIR, AppConstants.ConfigFiles.DevicesConfig);
-                await File.WriteAllTextAsync(jsonPath, json);
+                await File.WriteAllTextAsync(jsonPath, json).ConfigureAwait(false);
                 _logger.LogInformation("Saved devices config to JSON");
             }
             catch (Exception ex)
@@ -336,7 +454,7 @@ namespace TestTool.Data
                 _logger.LogError(ex, "Failed to save devices config to JSON");
             }
         }
-
+ 
         private DeviceConfigJson CreateDeviceJson(DeviceConfig device)
         {
             var json = new DeviceConfigJson
@@ -346,8 +464,10 @@ namespace TestTool.Data
                 IsLocked = device.IsPortLocked,
                 DeviceName = device.DeviceName ?? string.Empty,
                 OnCommand = device.OnCommand ?? "ON",
-                OffCommand = device.OffCommand ?? "OFF"
-            };
+                OffCommand = device.OffCommand ?? "OFF",
+                IsInHost = device.IsMonitorInHost,
+                HostId = device.MonitorHostId
+             };
 
             // 保存窗口位置配置
             if (device.MonitorPosition != null && device.MonitorPosition.IsValid)
@@ -362,6 +482,78 @@ namespace TestTool.Data
             }
 
             return json;
+        }
+
+        private List<HostConfigJson> BuildHostsJson(AppConfig config)
+        {
+            var result = new List<HostConfigJson>();
+
+            // 先尝试使用配置中的 Host 列表
+            var hostMap = new Dictionary<string, HostConfigJson>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var host in config.MonitorHosts ?? Enumerable.Empty<MonitorHostConfig>())
+            {
+                var hostId = string.IsNullOrWhiteSpace(host.HostId) ? Guid.NewGuid().ToString("N") : host.HostId;
+                if (!hostMap.TryGetValue(hostId, out var hostJson))
+                {
+                    hostJson = new HostConfigJson
+                    {
+                        HostId = hostId,
+                        Position = host.Position != null && host.Position.IsValid
+                            ? new MonitorPositionJson
+                            {
+                                X = host.Position.X,
+                                Y = host.Position.Y,
+                                Width = host.Position.Width,
+                                Height = host.Position.Height
+                            }
+                            : null,
+                        Devices = new List<DeviceType>()
+                    };
+                    hostMap[hostId] = hostJson;
+                }
+
+                if (host.Devices != null)
+                {
+                    foreach (var dt in host.Devices)
+                    {
+                        if (!hostJson.Devices.Contains(dt))
+                        {
+                            hostJson.Devices.Add(dt);
+                        }
+                    }
+                }
+            }
+
+            // 若配置未提供 Host 列表，则根据设备的 HostId/IsInHost 构建
+            if (hostMap.Count == 0)
+            {
+                var grouped = config.Devices.Values
+                    .Where(d => d.IsMonitorInHost)
+                    .GroupBy(d => string.IsNullOrWhiteSpace(d.MonitorHostId) ? "host-default" : d.MonitorHostId!, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var grp in grouped)
+                {
+                    var hostId = grp.Key;
+                    hostMap[hostId] = new HostConfigJson
+                    {
+                        HostId = hostId,
+                        Position = config.MonitorHostPosition != null && config.MonitorHostPosition.IsValid
+                            ? new MonitorPositionJson
+                            {
+                                X = config.MonitorHostPosition.X,
+                                Y = config.MonitorHostPosition.Y,
+                                Width = config.MonitorHostPosition.Width,
+                                Height = config.MonitorHostPosition.Height
+                            }
+                            : null,
+                        Devices = grp.Select(d => d.DeviceType).Distinct().ToList()
+                    };
+                }
+            }
+
+            result.AddRange(hostMap.Values);
+            return result;
         }
 
         public async Task<T> GetValueAsync<T>(string key, T defaultValue)

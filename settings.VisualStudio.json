@@ -3,5 +3,7 @@
   "copilot.general.chat.enablePlanning": true,
   "copilot.general.chat.enableViewPlanExecution": true,
   "copilot.general.chat.autoSelectRefinementMode": true,
-  "copilot.general.chat.maxFunctionCallIterations": 200
+  "copilot.general.chat.maxFunctionCallIterations": 200,
+  "copilot.general.chat.enableCustomInstructionsFiles": false,
+  "copilot.general.chat.enableCustomInstructions": true
 }

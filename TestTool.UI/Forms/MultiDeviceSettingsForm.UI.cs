@@ -40,6 +40,12 @@ namespace TestTool
             _appConfig = appConfig ?? new AppConfig();
             _mainForm = mainForm;
             InitializeComponent();
+            ApplyWindowPosition(_appConfig.SettingsWindowPosition, FormStartPosition.CenterScreen);
+        }
+
+        public MonitorWindowPosition GetCurrentPosition()
+        {
+            return GetCurrentWindowPosition();
         }
 
         public MultiDeviceSettingsForm(AppConfig appConfig, MainForm mainForm, IMultiDeviceSettingsPresenter presenter)
@@ -54,12 +60,13 @@ namespace TestTool
         private void InitializeComponent()
         {
             this.Text = "串口设置";
-            this.Size = new Size(560, 380);  // 增加宽度
+            this.Size = new Size(600, 380);  // 增加宽度
             this.FormBorderStyle = FormBorderStyle.Sizable;
             this.MaximizeBox = true;
             this.MinimizeBox = true;
-            this.MinimumSize = new Size(560, 380);  // 增加最小宽度
-            this.StartPosition = FormStartPosition.CenterParent;
+            this.MinimumSize = new Size(600, 380);  // 增加最小宽度
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.AutoScaleMode = AutoScaleMode.None;
 
             int panelHeight = 60;
             int startY = 10;
@@ -71,7 +78,7 @@ namespace TestTool
                 var config = _appConfig.GetDeviceConfig(deviceType);
                 var panel = new DeviceSettingsPanel(deviceType, config, _mainForm, GetLockedPortsExcept);
                 panel.Location = new Point(10, currentY);
-                panel.Size = new Size(520, panelHeight);  // 增加面板宽度
+                panel.Size = new Size(550, panelHeight);  // 增加面板宽度
                 panel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;  // 自适应宽度
 
                 // 订阅面板的锁定事件
@@ -86,7 +93,7 @@ namespace TestTool
             var btnLockAll = new Button
             {
                 Text = "一键锁定",
-                Location = new Point(300, currentY + 10),  // 调整位置
+                Location = new Point(350, currentY + 10),  // 调整位置
                 Size = new Size(90, 30),
                 BackColor = Color.LightGreen,
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right  // 锚定到右下
@@ -96,7 +103,7 @@ namespace TestTool
             var btnUnlockAll = new Button
             {
                 Text = "一键解锁",
-                Location = new Point(400, currentY + 10),
+                Location = new Point(450, currentY + 10),
                 Size = new Size(90, 30),
                 BackColor = Color.LightCoral,
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Right  // 锚定到右下
@@ -444,7 +451,7 @@ namespace TestTool
 
         private void UpdateMonitorButtonState(bool isOpen)
         {
-            _btnMonitor.Text = isOpen ? "关闭打印" : "打印";
+            _btnMonitor.Text = isOpen ? "打印关闭" : "打印";
             _btnMonitor.BackColor = isOpen ? Color.LightBlue : SystemColors.Control;
         }
 
@@ -546,3 +553,4 @@ namespace TestTool
         }
     }
 }
+

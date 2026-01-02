@@ -61,6 +61,8 @@ namespace TestTool
             // 一键连接/断开按钮
             btnConnectAll = new Button();
             btnDisconnectAll = new Button();
+            btnOpenAllMonitors = new Button();
+            btnCloseAllMonitors = new Button();
             flpActions = new FlowLayoutPanel();
             btnPowerOnAll = new Button();
             btnPowerOffAll = new Button();
@@ -108,6 +110,8 @@ namespace TestTool
             int actionSpacing = 10;
             int row5Y = startY + rowHeight * 4 + 10;
             int rowPowerY = row5Y;
+            var powerActionsWidth = connectWidth * 2 + actionSpacing;
+            var groupSpacing = actionSpacing * 2;
 
             // ========== FCC1 行 ==========
             // 
@@ -321,21 +325,19 @@ namespace TestTool
             // 
             flpActions.AutoSize = false;
             flpActions.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            flpActions.FlowDirection = FlowDirection.RightToLeft;
+            flpActions.FlowDirection = FlowDirection.LeftToRight;
             flpActions.WrapContents = false;
-            flpActions.Padding = new Padding(0, 8, 0, 0);
+            flpActions.Padding = new Padding(0);
             flpActions.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            var actionsWidth = connectWidth * 2 + actionSpacing;
+            var actionsWidth = connectWidth * 4 + actionSpacing * 3;
             flpActions.Size = new Size(actionsWidth, 50);
-            // 连接面板放左侧
-            var powerX = connectX + connectWidth - actionsWidth;
-            flpActions.Location = new Point(powerX - actionsWidth - actionSpacing, row5Y);
+            flpActions.Location = new Point(connectX + connectWidth - actionsWidth, row5Y);
 
             // 
             // btnConnectAll
             // 
             btnConnectAll.AutoSize = false;
-            btnConnectAll.Margin = new Padding(actionSpacing, 0, 0, 0);
+            btnConnectAll.Margin = new Padding(0);
             btnConnectAll.Name = "btnConnectAll";
             btnConnectAll.Size = new Size(connectWidth, 32);
             btnConnectAll.TabIndex = 17;
@@ -348,7 +350,7 @@ namespace TestTool
             // btnDisconnectAll
             // 
             btnDisconnectAll.AutoSize = false;
-            btnDisconnectAll.Margin = new Padding(0, 0, 0, 0);
+            btnDisconnectAll.Margin = new Padding(actionSpacing, 0, 0, 0);
             btnDisconnectAll.Name = "btnDisconnectAll";
             btnDisconnectAll.Size = new Size(connectWidth, 32);
             btnDisconnectAll.TabIndex = 18;
@@ -358,16 +360,41 @@ namespace TestTool
             btnDisconnectAll.Click += btnDisconnectAll_Click;
 
             // 
+            // btnOpenAllMonitors
+            // 
+            btnOpenAllMonitors.AutoSize = false;
+            btnOpenAllMonitors.Margin = new Padding(actionSpacing, 0, 0, 0);
+            btnOpenAllMonitors.Name = "btnOpenAllMonitors";
+            btnOpenAllMonitors.Size = new Size(connectWidth, 32);
+            btnOpenAllMonitors.TabIndex = 19;
+            btnOpenAllMonitors.Text = "打开打印";
+            btnOpenAllMonitors.BackColor = Color.LightSkyBlue;
+            btnOpenAllMonitors.UseVisualStyleBackColor = false;
+            btnOpenAllMonitors.Click += btnOpenAllMonitors_Click;
+
+            // 
+            // btnCloseAllMonitors
+            // 
+            btnCloseAllMonitors.AutoSize = false;
+            btnCloseAllMonitors.Margin = new Padding(actionSpacing, 0, 0, 0);
+            btnCloseAllMonitors.Name = "btnCloseAllMonitors";
+            btnCloseAllMonitors.Size = new Size(connectWidth, 32);
+            btnCloseAllMonitors.TabIndex = 20;
+            btnCloseAllMonitors.Text = "关闭打印";
+            btnCloseAllMonitors.BackColor = Color.LightYellow;
+            btnCloseAllMonitors.UseVisualStyleBackColor = false;
+            btnCloseAllMonitors.Click += btnCloseAllMonitors_Click;
+
+            // 
             // flpPowerActions
             // 
             flpPowerActions.AutoSize = false;
             flpPowerActions.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            flpPowerActions.FlowDirection = FlowDirection.RightToLeft;
+            flpPowerActions.FlowDirection = FlowDirection.LeftToRight;
             flpPowerActions.WrapContents = false;
-            flpPowerActions.Padding = new Padding(0, 8, 0, 0);
+            flpPowerActions.Padding = new Padding(0);
             flpPowerActions.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            flpPowerActions.Size = new Size(actionsWidth, 50);
-            // 电源面板放右侧
+            var powerX = connectX + connectWidth - actionsWidth - powerActionsWidth - groupSpacing;
             flpPowerActions.Location = new Point(powerX, rowPowerY);
 
             // 
@@ -377,7 +404,7 @@ namespace TestTool
             btnPowerOnAll.Margin = new Padding(actionSpacing, 0, 0, 0);
             btnPowerOnAll.Name = "btnPowerOnAll";
             btnPowerOnAll.Size = new Size(connectWidth, 32);
-            btnPowerOnAll.TabIndex = 19;
+            btnPowerOnAll.TabIndex = 21;
             btnPowerOnAll.Text = "一键开启";
             btnPowerOnAll.BackColor = Color.LightGreen;
             btnPowerOnAll.UseVisualStyleBackColor = false;
@@ -387,10 +414,10 @@ namespace TestTool
             // btnPowerOffAll
             // 
             btnPowerOffAll.AutoSize = false;
-            btnPowerOffAll.Margin = new Padding(0, 0, 0, 0);
+            btnPowerOffAll.Margin = new Padding(actionSpacing, 0, 0, 0);
             btnPowerOffAll.Name = "btnPowerOffAll";
             btnPowerOffAll.Size = new Size(connectWidth, 32);
-            btnPowerOffAll.TabIndex = 20;
+            btnPowerOffAll.TabIndex = 22;
             btnPowerOffAll.Text = "一键关闭";
             btnPowerOffAll.BackColor = Color.LightCoral;
             btnPowerOffAll.UseVisualStyleBackColor = false;
@@ -430,12 +457,14 @@ namespace TestTool
             pnlDevices.Controls.Add(btnOffHIL);
             pnlDevices.Controls.Add(btnConnectHIL);
 
-            flpActions.Controls.Add(btnDisconnectAll);
             flpActions.Controls.Add(btnConnectAll);
+            flpActions.Controls.Add(btnDisconnectAll);
+            flpActions.Controls.Add(btnPowerOnAll);
+            flpActions.Controls.Add(btnPowerOffAll);
 
             pnlDevices.Controls.Add(flpActions);
-            flpPowerActions.Controls.Add(btnPowerOffAll);
-            flpPowerActions.Controls.Add(btnPowerOnAll);
+            flpPowerActions.Controls.Add(btnOpenAllMonitors);
+            flpPowerActions.Controls.Add(btnCloseAllMonitors);
 
             pnlDevices.Controls.Add(flpPowerActions);
 
@@ -453,7 +482,7 @@ namespace TestTool
             MinimumSize = new Size(640, 340);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "电源控制工具";
+            Text = "TestTools";
             Load += MainForm_Load;
 
             menuStrip1.ResumeLayout(false);
@@ -501,5 +530,7 @@ namespace TestTool
         private Button btnPowerOnAll;
         private Button btnPowerOffAll;
         private FlowLayoutPanel flpPowerActions;
+        private Button btnOpenAllMonitors;
+        private Button btnCloseAllMonitors;
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Extensions.Logging;
@@ -31,7 +32,9 @@ namespace TestTool
         private AppConfig _appConfig = null!;
 
         // 每设备独立的监视器窗口
-        private readonly Dictionary<DeviceType, SerialMonitorForm?> _monitorForms = new();
+        private readonly Dictionary<DeviceType, DeviceMonitorForm?> _monitorForms = new();
+        private readonly List<SerialMonitorHostForm> _monitorHosts = new();
+        private readonly Dictionary<DeviceType, SerialMonitorHostForm> _deviceHostMap = new();
 
         // 设置窗口实例
         private MultiDeviceSettingsForm? _settingsForm;
@@ -89,7 +92,7 @@ namespace TestTool
             }
         }
 
-        // 窗体加载事件
+        // 窎体加载事件
         private async void MainForm_Load(object? sender, EventArgs e)
         {
             if (_isDesignMode)
@@ -102,6 +105,8 @@ namespace TestTool
 
                 await _coordinator.InitializeAsync();
                 _appConfig = _coordinator.AppConfig;
+
+                RestoreHostsFromConfig();
 
                 // 订阅多设备事件
                 _coordinator.ConnectionStateChanged += OnConnectionStateChanged;
@@ -390,19 +395,31 @@ namespace TestTool
         // 数据接收
         private void OnSerialDataReceived(object? sender, DeviceDataReceivedEventArgs e)
         {
-            if (!_monitorForms.TryGetValue(e.DeviceType, out var monitor) || monitor == null || monitor.IsDisposed || !monitor.Visible)
+            if (_deviceHostMap.TryGetValue(e.DeviceType, out var host) && host != null && !host.IsDisposed && host.TryGetMonitor(e.DeviceType, out var hostMonitor) && hostMonitor != null)
+            {
+                hostMonitor.AppendLine(e.DataArgs.Data);
                 return;
+            }
 
-            monitor.AppendLine(e.DataArgs.Data);
+            if (_monitorForms.TryGetValue(e.DeviceType, out var monitor) && monitor != null && !monitor.IsDisposed && monitor.Visible)
+            {
+                monitor.AppendLine(e.DataArgs.Data);
+            }
         }
 
         // 数据发送
         private void OnSerialDataSent(object? sender, DeviceDataSentEventArgs e)
         {
-            if (!_monitorForms.TryGetValue(e.DeviceType, out var monitor) || monitor == null || monitor.IsDisposed || !monitor.Visible)
+            if (_deviceHostMap.TryGetValue(e.DeviceType, out var host) && host != null && !host.IsDisposed && host.TryGetMonitor(e.DeviceType, out var hostMonitor) && hostMonitor != null)
+            {
+                hostMonitor.AppendSent(e.DataArgs.Command);
                 return;
+            }
 
-            monitor.AppendSent(e.DataArgs.Command);
+            if (_monitorForms.TryGetValue(e.DeviceType, out var monitor) && monitor != null && !monitor.IsDisposed && monitor.Visible)
+            {
+                monitor.AppendSent(e.DataArgs.Command);
+            }
         }
 
         #endregion
@@ -412,21 +429,38 @@ namespace TestTool
         // 切换指定设备的监视器窗口
         public void ToggleMonitor(DeviceType deviceType)
         {
-            if (_monitorForms.TryGetValue(deviceType, out var monitor) && monitor != null && !monitor.IsDisposed && monitor.Visible)
+            var config = _appConfig.GetDeviceConfig(deviceType);
+
+            // 如果需要合并到 Host
+            if (config.IsMonitorInHost)
             {
-                monitor.Close();
-                // Close 会触发 FormClosed，FormClosed 中会触发 MonitorStateChanged
+                var monitor = EnsureMonitorForm(deviceType);
+                var host = GetOrCreateHostForDevice(deviceType);
+                DetachFromOtherHost(deviceType, host);
+                host.AttachMonitor(monitor);
+                if (!host.Visible)
+                {
+                    host.Show();
+                }
+                MonitorStateChanged?.Invoke(this, new MonitorStateChangedEventArgs(deviceType, true));
                 return;
             }
 
-            EnsureMonitorForm(deviceType);
-            _monitorForms[deviceType]!.Show(this);
-            // 通知监视器已打开
+            if (_monitorForms.TryGetValue(deviceType, out var monitorWindow) && monitorWindow != null && !monitorWindow.IsDisposed && monitorWindow.Visible)
+            {
+                monitorWindow.Close();
+                return;
+            }
+
+            var monitorForm = EnsureMonitorForm(deviceType);
+            monitorForm.Show();
+            monitorForm.BringToFront();
+            monitorForm.Activate();
             MonitorStateChanged?.Invoke(this, new MonitorStateChangedEventArgs(deviceType, true));
         }
 
         // 确保监视器窗口存在并订阅关闭事件
-        private void EnsureMonitorForm(DeviceType deviceType)
+        private DeviceMonitorForm EnsureMonitorForm(DeviceType deviceType)
         {
             var config = _appConfig.GetDeviceConfig(deviceType);
             var title = string.IsNullOrWhiteSpace(config.SelectedPort)
@@ -435,31 +469,67 @@ namespace TestTool
 
             if (!_monitorForms.TryGetValue(deviceType, out var monitor) || monitor == null || monitor.IsDisposed)
             {
-                var newMonitor = new SerialMonitorForm(title);
-                _monitorForms[deviceType] = newMonitor;
+                var newMonitor = new DeviceMonitorForm(deviceType, title);
+                 _monitorForms[deviceType] = newMonitor;
 
-                // 订阅关闭事件以通知状态变化
-                var dt = deviceType; // 捕获变量避免闭包问题
-                newMonitor.FormClosed += (s, args) =>
-                {
-                    _logger?.LogDebug("Monitor {Device} closed, firing MonitorStateChanged", dt);
-                    MonitorStateChanged?.Invoke(this, new MonitorStateChangedEventArgs(dt, false));
-                };
-            }
-            else
-            {
-                monitor.Text = title;
-            }
+                 var dt = deviceType;
+                 newMonitor.FormClosed += (s, args) =>
+                 {
+                     config.MonitorPosition = newMonitor.GetCurrentPosition();
+                     _ = _coordinator.SaveConfigAsync();
+                     _logger?.LogDebug("Monitor {Device} closed, firing MonitorStateChanged", dt);
+                     MonitorStateChanged?.Invoke(this, new MonitorStateChangedEventArgs(dt, false));
+                 };
+
+                newMonitor.MonitorDroppedOnMe += OnMonitorDroppedBetweenWindows;
+             }
+             else
+             {
+                 monitor.Text = title;
+             }
+
+             _monitorForms[deviceType]!.ApplyPosition(config.MonitorPosition);
+             return _monitorForms[deviceType]!;
+         }
+
+        private void OnMonitorDroppedBetweenWindows(DeviceMonitorForm source, DeviceMonitorForm target)
+        {
+            // 唤起或创建 Host
+            var fallbackPosition = target.GetCurrentPosition();
+            var host = GetOrCreateHostForDevice(target.DeviceType, fallbackPosition) ?? GetOrCreateHostForDevice(source.DeviceType, fallbackPosition);
+
+            DetachFromOtherHost(target.DeviceType, host);
+            DetachFromOtherHost(source.DeviceType, host);
+            host.AttachMonitor(target);
+            host.AttachMonitor(source);
+             if (!host.Visible)
+             {
+                 host.Show();
+             }
+
+            // 更新合并状态并通知
+            _appConfig.GetDeviceConfig(target.DeviceType).IsMonitorInHost = true;
+            _appConfig.GetDeviceConfig(source.DeviceType).IsMonitorInHost = true;
+            MonitorStateChanged?.Invoke(this, new MonitorStateChangedEventArgs(target.DeviceType, true));
+            MonitorStateChanged?.Invoke(this, new MonitorStateChangedEventArgs(source.DeviceType, true));
+            _ = _coordinator.SaveConfigAsync();
         }
 
         // 检查指定设备监视器是否打开
         public bool IsMonitorOpen(DeviceType deviceType)
         {
+            if (_deviceHostMap.TryGetValue(deviceType, out var mappedHost) && mappedHost != null && !mappedHost.IsDisposed)
+            {
+                if (mappedHost.TryGetMonitor(deviceType, out var hostMonitor) && hostMonitor != null)
+                {
+                    return hostMonitor.IsHandleCreated && hostMonitor.Visible;
+                }
+            }
+
             if (!_monitorForms.TryGetValue(deviceType, out var monitor))
                 return false;
             if (monitor == null || monitor.IsDisposed)
                 return false;
-            // 使用 IsHandleCreated 和 Visible 组合判断
             return monitor.IsHandleCreated && monitor.Visible;
         }
 
@@ -470,12 +540,30 @@ namespace TestTool
         {
             foreach (DeviceType deviceType in Enum.GetValues<DeviceType>())
             {
-                if (!IsMonitorOpen(deviceType))
+                var config = _appConfig.GetDeviceConfig(deviceType);
+                var monitor = EnsureMonitorForm(deviceType);
+
+                if (config.IsMonitorInHost)
                 {
-                    EnsureMonitorForm(deviceType);
-                    _monitorForms[deviceType]!.Show(this);
-                    MonitorStateChanged?.Invoke(this, new MonitorStateChangedEventArgs(deviceType, true));
+                    var host = GetOrCreateHostForDevice(deviceType);
+                    DetachFromOtherHost(deviceType, host);
+                    host.AttachMonitor(monitor);
+                    if (!host.Visible)
+                    {
+                        host.Show();
+                    }
                 }
+                else if (!IsMonitorOpen(deviceType))
+                {
+                    if (!monitor.Visible)
+                    {
+                        monitor.Show();
+                        monitor.BringToFront();
+                        monitor.Activate();
+                    }
+                }
+
+                MonitorStateChanged?.Invoke(this, new MonitorStateChangedEventArgs(deviceType, true));
             }
         }
 
@@ -484,6 +572,17 @@ namespace TestTool
         /// </summary>
         public void CloseAllMonitors()
         {
+            SaveMonitorPositions();
+            foreach (var host in _monitorHosts.ToArray())
+            {
+                if (host != null && !host.IsDisposed)
+                {
+                    host.Close();
+                }
+            }
+            _monitorHosts.Clear();
+            _deviceHostMap.Clear();
+
             foreach (var kvp in _monitorForms)
             {
                 if (kvp.Value != null && !kvp.Value.IsDisposed && kvp.Value.Visible)
@@ -492,6 +591,218 @@ namespace TestTool
                 }
             }
         }
+
+        private SerialMonitorHostForm CreateHostForm(string? hostId = null, MonitorWindowPosition? position = null)
+         {
+             var host = new SerialMonitorHostForm();
+            host.HostId = string.IsNullOrWhiteSpace(hostId) ? Guid.NewGuid().ToString("N") : hostId;
+             host.MonitorMerged += OnMonitorMergedToHost;
+             host.MonitorPopped += OnMonitorPoppedFromHost;
+             host.ApplyPosition(position ?? _appConfig.MonitorHostPosition);
+             host.FormClosing += async (_, _) =>
+             {
+                 try
+                 {
+                     SaveHostConfigs();
+                     await _coordinator.SaveConfigAsync().ConfigureAwait(false);
+                 }
+                 catch (Exception ex)
+                 {
+                     _logger?.LogWarning(ex, "Error saving host configs during FormClosing");
+                 }
+             };
+             host.FormClosed += (_, _) =>
+             {
+                // 先保存当前所有 Host 的位置与设备映射，确保关闭前已持久化
+                SaveHostConfigs();
+                _ = _coordinator.SaveConfigAsync();
+
+                // 再清理运行时映射
+                _monitorHosts.Remove(host);
+                foreach (var kv in _deviceHostMap.Where(kv => kv.Value == host).ToList())
+                {
+                    _deviceHostMap.Remove(kv.Key);
+                }
+             };
+             _monitorHosts.Add(host);
+             return host;
+         }
+
+         private SerialMonitorHostForm GetOrCreateHostForDevice(DeviceType deviceType, MonitorWindowPosition? fallbackPosition = null)
+         {
+             if (_deviceHostMap.TryGetValue(deviceType, out var mappedHost) && mappedHost != null && !mappedHost.IsDisposed)
+             {
+                 return mappedHost;
+             }
+ 
+             var deviceConfig = _appConfig.GetDeviceConfig(deviceType);
+             var desiredHostId = deviceConfig.MonitorHostId;
+             var isInHost = deviceConfig.IsMonitorInHost;
+ 
+             // 尝试按配置的 HostId 找到现有 Host
+             var host = _monitorHosts.FirstOrDefault(h => h != null && !h.IsDisposed && !string.IsNullOrWhiteSpace(desiredHostId) && string.Equals(h.HostId, desiredHostId, StringComparison.OrdinalIgnoreCase));
+ 
+             // 若未找到：
+             if (host == null)
+             {
+                 // 如果有指定 HostId，优先用该 HostId 创建新的 Host
+                if (!string.IsNullOrWhiteSpace(desiredHostId))
+                {
+                    var hostConfig = _appConfig.MonitorHosts.FirstOrDefault(h => string.Equals(h.HostId, desiredHostId, StringComparison.OrdinalIgnoreCase));
+                    var position = hostConfig?.Position ?? fallbackPosition ?? _appConfig.MonitorHostPosition;
+                    host = CreateHostForm(desiredHostId, position);
+                }
+                else if (isInHost)
+                {
+                    // 无指定 HostId 但标记在 Host：复用已有第一个，否则创建新 Host
+                    host = _monitorHosts.FirstOrDefault(h => h != null && !h.IsDisposed)
+                           ?? CreateHostForm(null, fallbackPosition ?? _appConfig.MonitorHostPosition);
+                }
+                else
+                {
+                    // 不在 Host，直接创建独立 Host 以防误合并
+                    host = CreateHostForm(null, fallbackPosition ?? _appConfig.MonitorHostPosition);
+                }
+             }
+ 
+             return host;
+         }
+ 
+         /// <summary>
+         /// 附加到目标 Host 前，先从其他 Host 脱离，避免出现重复窗口。
+         /// </summary>
+         private void DetachFromOtherHost(DeviceType deviceType, SerialMonitorHostForm targetHost)
+         {
+             if (_deviceHostMap.TryGetValue(deviceType, out var existingHost) && existingHost != null && existingHost != targetHost && !existingHost.IsDisposed)
+             {
+                 existingHost.PopOut(deviceType);
+             }
+         }
+ 
+         private void OnMonitorMergedToHost(DeviceType deviceType, SerialMonitorHostForm host)
+         {
+             var config = _appConfig.GetDeviceConfig(deviceType);
+             _deviceHostMap[deviceType] = host;
+             config.IsMonitorInHost = true;
+             config.MonitorHostId = host.HostId;
+             EnsureHostConfigMembership(host.HostId, deviceType, host.GetCurrentPosition());
+             _ = _coordinator.SaveConfigAsync();
+             MonitorStateChanged?.Invoke(this, new MonitorStateChangedEventArgs(deviceType, true));
+         }
+ 
+         private void OnMonitorPoppedFromHost(DeviceType deviceType, DeviceMonitorForm monitor, SerialMonitorHostForm host)
+         {
+             var config = _appConfig.GetDeviceConfig(deviceType);
+             config.IsMonitorInHost = false;
+             config.MonitorHostId = null;
+             _deviceHostMap.Remove(deviceType);
+             RemoveDeviceFromHostConfig(host.HostId, deviceType);
+             _monitorForms[deviceType] = monitor;
+             monitor.StartPosition = FormStartPosition.CenterParent;
+             if (!monitor.Visible)
+             {
+                 monitor.Show();
+             }
+             else
+             {
+                 monitor.BringToFront();
+             }
+             _ = _coordinator.SaveConfigAsync();
+             MonitorStateChanged?.Invoke(this, new MonitorStateChangedEventArgs(deviceType, true));
+         }
+
+         private void SaveMonitorPositions()
+         {
+            SaveHostConfigs();
+             _ = _coordinator.SaveConfigAsync();
+         }
+ 
+         private void SaveHostConfigs()
+         {
+             var hostMap = (_appConfig.MonitorHosts ?? new List<MonitorHostConfig>())
+                 .Where(h => h != null && !string.IsNullOrWhiteSpace(h.HostId))
+                 .ToDictionary(h => h.HostId!, StringComparer.OrdinalIgnoreCase);
+ 
+             foreach (var host in _monitorHosts.Where(h => h != null && !h.IsDisposed))
+             {
+                 var devices = _deviceHostMap.Where(kv => kv.Value == host).Select(kv => kv.Key).Distinct().ToList();
+                 hostMap[host.HostId] = new MonitorHostConfig
+                 {
+                     HostId = host.HostId,
+                     Position = host.GetCurrentPosition(),
+                     Devices = devices
+                 };
+             }
+ 
+             var hostConfigs = hostMap.Values
+                 .Where(h => h != null && (!string.IsNullOrWhiteSpace(h.HostId)) && ((h.Devices?.Count ?? 0) > 0 || h.Position != null))
+                 .ToList();
+ 
+             _appConfig.MonitorHosts = hostConfigs;
+             _appConfig.MonitorHostPosition = hostConfigs.FirstOrDefault()?.Position;
+         }
+ 
+         private void EnsureHostConfigMembership(string hostId, DeviceType deviceType, MonitorWindowPosition? position)
+         {
+             if (string.IsNullOrWhiteSpace(hostId))
+                 return;
+ 
+             var hostConfig = _appConfig.MonitorHosts.FirstOrDefault(h => string.Equals(h.HostId, hostId, StringComparison.OrdinalIgnoreCase));
+             if (hostConfig == null)
+             {
+                 hostConfig = new MonitorHostConfig
+                 {
+                     HostId = hostId,
+                     Position = position,
+                     Devices = new List<DeviceType>()
+                 };
+                 _appConfig.MonitorHosts.Add(hostConfig);
+             }
+ 
+             if (position != null)
+             {
+                 hostConfig.Position = position;
+             }
+ 
+             if (!hostConfig.Devices.Contains(deviceType))
+             {
+                 hostConfig.Devices.Add(deviceType);
+             }
+ 
+             var deviceConfig = _appConfig.GetDeviceConfig(deviceType);
+             deviceConfig.IsMonitorInHost = true;
+             deviceConfig.MonitorHostId = hostId;
+         }
+ 
+         private void RemoveDeviceFromHostConfig(string? hostId, DeviceType deviceType)
+         {
+             if (string.IsNullOrWhiteSpace(hostId))
+                 return;
+             var hostConfig = _appConfig.MonitorHosts.FirstOrDefault(h => string.Equals(h.HostId, hostId, StringComparison.OrdinalIgnoreCase));
+             if (hostConfig != null)
+             {
+                 hostConfig.Devices.Remove(deviceType);
+                 if (hostConfig.Devices.Count == 0 && hostConfig.Position == null)
+                 {
+                     _appConfig.MonitorHosts.Remove(hostConfig);
+                 }
+             }
+         }
+ 
+         private void RestoreHostsFromConfig()
+         {
+             foreach (var hostConfig in _appConfig.MonitorHosts)
+             {
+                 var host = CreateHostForm(hostConfig.HostId, hostConfig.Position);
+                 foreach (var deviceType in hostConfig.Devices)
+                 {
+                     _deviceHostMap[deviceType] = host;
+                     var deviceConfig = _appConfig.GetDeviceConfig(deviceType);
+                     deviceConfig.IsMonitorInHost = true;
+                     deviceConfig.MonitorHostId = host.HostId;
+                 }
+             }
+         }
 
         #endregion
 
@@ -505,10 +816,23 @@ namespace TestTool
                 _settingsForm = new MultiDeviceSettingsForm(_appConfig, this, presenter);
                 _settingsForm.SettingsConfirmed += async (_, _) => await ApplySettingsFromDialogAsync();
                 _settingsForm.DeviceSettingsChanged += async (_, args) => await ApplyDeviceSettingsAsync(args);
+                _settingsForm.FormClosing += async (_, _) =>
+                {
+                    try
+                    {
+                        _appConfig.SettingsWindowPosition = _settingsForm.GetCurrentPosition();
+                        await _coordinator.SaveConfigAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogWarning(ex, "Error saving settings window position");
+                    }
+                };
                 _settingsForm.FormClosed += (_, _) => _settingsForm = null;
             }
 
-            _settingsForm.Show(this);
+            _settingsForm.StartPosition = FormStartPosition.CenterScreen;
+            _settingsForm.Show();
             _settingsForm.BringToFront();
         }
 
@@ -598,7 +922,20 @@ namespace TestTool
                     _settingsForm = null;
                 }
 
+                // 保存监视窗口位置
+                SaveMonitorPositions();
+
                 // 关闭所有监视器窗口
+                foreach (var host in _monitorHosts.ToArray())
+                {
+                    if (host != null && !host.IsDisposed)
+                    {
+                        host.Close();
+                    }
+                }
+                _monitorHosts.Clear();
+                _deviceHostMap.Clear();
+
                 foreach (var kvp in _monitorForms)
                 {
                     if (kvp.Value != null && !kvp.Value.IsDisposed)
@@ -620,5 +957,35 @@ namespace TestTool
         }
 
         #endregion
+
+        private async void btnOpenAllMonitors_Click(object? sender, EventArgs e)
+        {
+            btnOpenAllMonitors.Enabled = false;
+            btnCloseAllMonitors.Enabled = false;
+            try
+            {
+                OpenAllMonitors();
+            }
+            finally
+            {
+                btnOpenAllMonitors.Enabled = true;
+                btnCloseAllMonitors.Enabled = true;
+            }
+        }
+
+        private async void btnCloseAllMonitors_Click(object? sender, EventArgs e)
+        {
+            btnOpenAllMonitors.Enabled = false;
+            btnCloseAllMonitors.Enabled = false;
+            try
+            {
+                CloseAllMonitors();
+            }
+            finally
+            {
+                btnOpenAllMonitors.Enabled = true;
+                btnCloseAllMonitors.Enabled = true;
+            }
+        }
     }
 }

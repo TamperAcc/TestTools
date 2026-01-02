@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
@@ -82,6 +82,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include=".github\copilot-instructions.md" />
     <None Include=".github\scripts\check_onchange.ps1" />
     <None Include=".github\workflows\ci.yml" />
     <None Include=".github\workflows\options-monitor-check.yml" />

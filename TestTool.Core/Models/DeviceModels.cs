@@ -85,6 +85,16 @@ namespace TestTool.Core.Models
         public ConnectionConfig ConnectionSettings { get; set; } = new();
         public string OnCommand { get; set; } = "ON";
         public string OffCommand { get; set; } = "OFF";
+        /// <summary>
+        /// 打印窗口是否合并到总监视窗中
+        /// </summary>
+        public bool IsMonitorInHost { get; set; }
+
+        /// <summary>
+        /// 所属 Host 标识（多 Host 时使用）。
+        /// </summary>
+        public string? MonitorHostId { get; set; }
+
         public MonitorWindowPosition? MonitorPosition { get; set; }
 
         public DeviceConfig() { }
@@ -156,6 +166,15 @@ namespace TestTool.Core.Models
 
         public MonitorWindowPosition? MainWindowPosition { get; set; }
         public MonitorWindowPosition? SettingsWindowPosition { get; set; }
+        /// <summary>
+        /// 总监视窗位置
+        /// </summary>
+        public MonitorWindowPosition? MonitorHostPosition { get; set; }
+
+        /// <summary>
+        /// 多个 Host 的配置（位置与设备映射）。
+        /// </summary>
+        public List<MonitorHostConfig> MonitorHosts { get; set; } = new();
 
         public AppConfig()
         {
@@ -189,5 +208,23 @@ namespace TestTool.Core.Models
         public int SendRetries { get; set; } = 2;
         [Range(50, 5000, ErrorMessage = "BaseDelayMs must be between 50ms and 5000ms")]
         public int BaseDelayMs { get; set; } = 200;
+    }
+
+    public class MonitorHostConfig
+    {
+        /// <summary>
+        /// Host 唯一标识
+        /// </summary>
+        public string HostId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Host 窗口位置
+        /// </summary>
+        public MonitorWindowPosition? Position { get; set; }
+
+        /// <summary>
+        /// 包含的设备列表
+        /// </summary>
+        public List<DeviceType> Devices { get; set; } = new();
     }
 }
