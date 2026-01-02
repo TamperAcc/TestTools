@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -111,6 +112,16 @@ namespace TestTool.Business.Services
         /// 关闭指定设备电源
         /// </summary>
         Task<bool> TurnOffAsync(DeviceType deviceType);
+
+        /// <summary>
+        /// 并发打开所有已锁定且已连接设备电源
+        /// </summary>
+        Task<Dictionary<DeviceType, bool>> TurnOnAllAsync(int maxConcurrency = 0, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 并发关闭所有已锁定且已连接设备电源
+        /// </summary>
+        Task<Dictionary<DeviceType, bool>> TurnOffAllAsync(int maxConcurrency = 0, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// 保存配置
@@ -412,11 +423,152 @@ namespace TestTool.Business.Services
             }
         }
 
-        public async Task SaveConfigAsync()
+        public async Task<Dictionary<DeviceType, bool>> TurnOnAllAsync(int maxConcurrency = 0, CancellationToken cancellationToken = default)
         {
             EnsureInitialized();
-            await _configRepository.SaveAsync(_appConfig).ConfigureAwait(false);
+
+            var results = new ConcurrentDictionary<DeviceType, bool>();
+            var tasks = new List<Task>();
+            var semaphore = new SemaphoreSlim(GetPowerConcurrency(maxConcurrency));
+
+            foreach (DeviceType deviceType in Enum.GetValues<DeviceType>())
+            {
+                if (!IsDeviceReadyForPower(deviceType))
+                {
+                    results[deviceType] = false;
+                    continue;
+                }
+
+                var dt = deviceType;
+                tasks.Add(RunTurnOnAsync(dt, semaphore, results, cancellationToken));
+            }
+
+            if (tasks.Count > 0)
+            {
+                try
+                {
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // 取消时结果已部分写入，忽略传播
+                }
+            }
+
+            return new Dictionary<DeviceType, bool>(results);
         }
+
+        public async Task<Dictionary<DeviceType, bool>> TurnOffAllAsync(int maxConcurrency = 0, CancellationToken cancellationToken = default)
+        {
+            EnsureInitialized();
+
+            var results = new ConcurrentDictionary<DeviceType, bool>();
+            var tasks = new List<Task>();
+            var semaphore = new SemaphoreSlim(GetPowerConcurrency(maxConcurrency));
+
+            foreach (DeviceType deviceType in Enum.GetValues<DeviceType>())
+            {
+                if (!IsDeviceReadyForPower(deviceType))
+                {
+                    results[deviceType] = false;
+                    continue;
+                }
+
+                var dt = deviceType;
+                tasks.Add(RunTurnOffAsync(dt, semaphore, results, cancellationToken));
+            }
+
+            if (tasks.Count > 0)
+            {
+                try
+                {
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // 取消时结果已部分写入，忽略传播
+                }
+            }
+
+            return new Dictionary<DeviceType, bool>(results);
+        }
+
+        private bool IsDeviceReadyForPower(DeviceType deviceType)
+        {
+            var config = _appConfig.GetDeviceConfig(deviceType);
+            if (!config.IsPortLocked)
+            {
+                _logger?.LogInformation("PowerAll skipped {Device}: port not locked", deviceType);
+                return false;
+            }
+
+            if (!_serialServices.TryGetValue(deviceType, out var service) || !service.IsConnected)
+            {
+                _logger?.LogInformation("PowerAll skipped {Device}: not connected", deviceType);
+                return false;
+            }
+
+            return true;
+        }
+
+        private async Task RunTurnOnAsync(DeviceType deviceType, SemaphoreSlim semaphore, ConcurrentDictionary<DeviceType, bool> results, CancellationToken cancellationToken)
+        {
+            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var success = await TurnOnAsync(deviceType).ConfigureAwait(false);
+                results[deviceType] = success;
+            }
+            catch (OperationCanceledException)
+            {
+                results[deviceType] = false;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "TurnOnAllAsync failed for {Device}", deviceType);
+                results[deviceType] = false;
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }
+
+        private async Task RunTurnOffAsync(DeviceType deviceType, SemaphoreSlim semaphore, ConcurrentDictionary<DeviceType, bool> results, CancellationToken cancellationToken)
+        {
+            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var success = await TurnOffAsync(deviceType).ConfigureAwait(false);
+                results[deviceType] = success;
+            }
+            catch (OperationCanceledException)
+            {
+                results[deviceType] = false;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "TurnOffAllAsync failed for {Device}", deviceType);
+                results[deviceType] = false;
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }
+
+        private int GetPowerConcurrency(int overrideValue)
+        {
+            var configured = _appConfig.PowerConcurrency > 0 ? _appConfig.PowerConcurrency : 4;
+            var effective = overrideValue > 0 ? overrideValue : configured;
+            return Math.Max(1, effective);
+        }
+ 
+         public async Task SaveConfigAsync()
+         {
+             EnsureInitialized();
+             await _configRepository.SaveAsync(_appConfig).ConfigureAwait(false);
+         }
 
         public bool TryUpdateConnectionConfig(DeviceType deviceType, string port, int baudRate, bool isLocked)
         {

@@ -62,6 +62,9 @@ namespace TestTool
             btnConnectAll = new Button();
             btnDisconnectAll = new Button();
             flpActions = new FlowLayoutPanel();
+            btnPowerOnAll = new Button();
+            btnPowerOffAll = new Button();
+            flpPowerActions = new FlowLayoutPanel();
 
             menuStrip1.SuspendLayout();
             SuspendLayout();
@@ -103,6 +106,8 @@ namespace TestTool
             int offX = onX + buttonWidth + 20;
             int connectX = offX + buttonWidth + 20;
             int actionSpacing = 10;
+            int row5Y = startY + rowHeight * 4 + 10;
+            int rowPowerY = row5Y;
 
             // ========== FCC1 行 ==========
             // 
@@ -311,8 +316,6 @@ namespace TestTool
             btnConnectHIL.Click += btnConnectHIL_Click;
 
             // ========== 一键操作按钮行 ==========
-            int row5Y = startY + rowHeight * 4 + 10;
-
             // 
             // flpActions
             // 
@@ -322,8 +325,11 @@ namespace TestTool
             flpActions.WrapContents = false;
             flpActions.Padding = new Padding(0, 8, 0, 0);
             flpActions.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            flpActions.Size = new Size(connectWidth * 2 + actionSpacing, 50);
-            flpActions.Location = new Point(connectX + connectWidth - (connectWidth * 2 + actionSpacing), row5Y);
+            var actionsWidth = connectWidth * 2 + actionSpacing;
+            flpActions.Size = new Size(actionsWidth, 50);
+            // 连接面板放左侧
+            var powerX = connectX + connectWidth - actionsWidth;
+            flpActions.Location = new Point(powerX - actionsWidth - actionSpacing, row5Y);
 
             // 
             // btnConnectAll
@@ -342,7 +348,7 @@ namespace TestTool
             // btnDisconnectAll
             // 
             btnDisconnectAll.AutoSize = false;
-            btnDisconnectAll.Margin = new Padding(actionSpacing, 0, 0, 0);
+            btnDisconnectAll.Margin = new Padding(0, 0, 0, 0);
             btnDisconnectAll.Name = "btnDisconnectAll";
             btnDisconnectAll.Size = new Size(connectWidth, 32);
             btnDisconnectAll.TabIndex = 18;
@@ -350,6 +356,45 @@ namespace TestTool
             btnDisconnectAll.BackColor = Color.LightCoral;
             btnDisconnectAll.UseVisualStyleBackColor = false;
             btnDisconnectAll.Click += btnDisconnectAll_Click;
+
+            // 
+            // flpPowerActions
+            // 
+            flpPowerActions.AutoSize = false;
+            flpPowerActions.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            flpPowerActions.FlowDirection = FlowDirection.RightToLeft;
+            flpPowerActions.WrapContents = false;
+            flpPowerActions.Padding = new Padding(0, 8, 0, 0);
+            flpPowerActions.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            flpPowerActions.Size = new Size(actionsWidth, 50);
+            // 电源面板放右侧
+            flpPowerActions.Location = new Point(powerX, rowPowerY);
+
+            // 
+            // btnPowerOnAll
+            // 
+            btnPowerOnAll.AutoSize = false;
+            btnPowerOnAll.Margin = new Padding(actionSpacing, 0, 0, 0);
+            btnPowerOnAll.Name = "btnPowerOnAll";
+            btnPowerOnAll.Size = new Size(connectWidth, 32);
+            btnPowerOnAll.TabIndex = 19;
+            btnPowerOnAll.Text = "一键开启";
+            btnPowerOnAll.BackColor = Color.LightGreen;
+            btnPowerOnAll.UseVisualStyleBackColor = false;
+            btnPowerOnAll.Click += btnPowerOnAll_Click;
+
+            // 
+            // btnPowerOffAll
+            // 
+            btnPowerOffAll.AutoSize = false;
+            btnPowerOffAll.Margin = new Padding(0, 0, 0, 0);
+            btnPowerOffAll.Name = "btnPowerOffAll";
+            btnPowerOffAll.Size = new Size(connectWidth, 32);
+            btnPowerOffAll.TabIndex = 20;
+            btnPowerOffAll.Text = "一键关闭";
+            btnPowerOffAll.BackColor = Color.LightCoral;
+            btnPowerOffAll.UseVisualStyleBackColor = false;
+            btnPowerOffAll.Click += btnPowerOffAll_Click;
 
             // 
             // pnlDevices
@@ -389,6 +434,10 @@ namespace TestTool
             flpActions.Controls.Add(btnConnectAll);
 
             pnlDevices.Controls.Add(flpActions);
+            flpPowerActions.Controls.Add(btnPowerOffAll);
+            flpPowerActions.Controls.Add(btnPowerOnAll);
+
+            pnlDevices.Controls.Add(flpPowerActions);
 
             // 
             // MainForm
@@ -449,5 +498,8 @@ namespace TestTool
         private Button btnConnectAll;
         private Button btnDisconnectAll;
         private FlowLayoutPanel flpActions;
+        private Button btnPowerOnAll;
+        private Button btnPowerOffAll;
+        private FlowLayoutPanel flpPowerActions;
     }
 }

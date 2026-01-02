@@ -117,6 +117,11 @@ namespace TestTool.Core.Models
 
     public class AppConfig
     {
+        /// <summary>
+        /// 一键开/关电源的并发度（最小1）
+        /// </summary>
+        [Range(1, 32, ErrorMessage = "PowerConcurrency must be between 1 and 32")]
+        public int PowerConcurrency { get; set; } = 4;
         [Obsolete("请使用 Devices 字典访问设备配置", false)]
         public string SelectedPort
         {

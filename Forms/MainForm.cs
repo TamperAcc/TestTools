@@ -273,6 +273,55 @@ namespace TestTool
 
         #endregion
 
+        #region 一键开/关事件
+
+        private async void btnPowerOnAll_Click(object? sender, EventArgs e) => await ExecutePowerAllAsync(true);
+
+        private async void btnPowerOffAll_Click(object? sender, EventArgs e) => await ExecutePowerAllAsync(false);
+
+        private async Task ExecutePowerAllAsync(bool turnOn)
+        {
+            if (_isDesignMode)
+                return;
+
+            btnPowerOnAll.Enabled = false;
+            btnPowerOffAll.Enabled = false;
+
+            try
+            {
+                if (turnOn)
+                {
+                    await _coordinator.TurnOnAllAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    await _coordinator.TurnOffAllAsync().ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error in PowerAll operation");
+            }
+            finally
+            {
+                if (InvokeRequired)
+                {
+                    BeginInvoke(new Action(() =>
+                    {
+                        btnPowerOnAll.Enabled = true;
+                        btnPowerOffAll.Enabled = true;
+                    }));
+                }
+                else
+                {
+                    btnPowerOnAll.Enabled = true;
+                    btnPowerOffAll.Enabled = true;
+                }
+            }
+        }
+
+        #endregion
+
         #region 事件处理
 
         // 连接状态变化

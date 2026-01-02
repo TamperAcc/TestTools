@@ -99,6 +99,12 @@ namespace TestTool.Data
         /// </summary>
         [JsonPropertyName("settingsWindowPosition")]
         public MonitorPositionJson? SettingsWindowPosition { get; set; }
+
+        /// <summary>
+        /// 一键电源并发度
+        /// </summary>
+        [JsonPropertyName("powerConcurrency")]
+        public int PowerConcurrency { get; set; } = 4;
     }
 
     /// <summary>
@@ -227,6 +233,9 @@ namespace TestTool.Data
                     json.SettingsWindowPosition.Width,
                     json.SettingsWindowPosition.Height);
             }
+
+            // 电源并发度（最小1）
+            config.PowerConcurrency = json.PowerConcurrency > 0 ? json.PowerConcurrency : 4;
         }
 
         private void ApplyDeviceJson(DeviceConfig device, DeviceConfigJson json, string defaultName)
@@ -287,8 +296,9 @@ namespace TestTool.Data
                 FCC1 = CreateDeviceJson(config.GetDeviceConfig(DeviceType.FCC1)),
                 FCC2 = CreateDeviceJson(config.GetDeviceConfig(DeviceType.FCC2)),
                 FCC3 = CreateDeviceJson(config.GetDeviceConfig(DeviceType.FCC3)),
-                HIL = CreateDeviceJson(config.GetDeviceConfig(DeviceType.HIL))
-            };
+                HIL = CreateDeviceJson(config.GetDeviceConfig(DeviceType.HIL)),
+                PowerConcurrency = config.PowerConcurrency > 0 ? config.PowerConcurrency : 4
+             };
 
             // 保存主窗口位置配置
             if (config.MainWindowPosition != null && config.MainWindowPosition.IsValid)
