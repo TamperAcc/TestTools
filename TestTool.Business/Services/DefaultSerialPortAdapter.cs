@@ -1,6 +1,7 @@
 using System;
 using System.IO.Ports;
 using System.Text;
+using TestTool.Core.Services;
 
 namespace TestTool.Business.Services
 {
@@ -35,18 +36,28 @@ namespace TestTool.Business.Services
         public int DataBits { get => _port.DataBits; set => _port.DataBits = value; }
         public StopBits StopBits { get => _port.StopBits; set => _port.StopBits = value; }
         public Encoding? Encoding { get => _port.Encoding; set => _port.Encoding = value ?? Encoding.UTF8; }
-        public int ReadTimeout { get => _port.ReadTimeout; set => _port.ReadTimeout = value; }
-        public int WriteTimeout { get => _port.WriteTimeout; set => _port.WriteTimeout = value; }
+        public int ReadTimeout
+        {
+            get => _port.ReadTimeout;
+            set => _port.ReadTimeout = value > 0 ? value : DefaultTimeoutMs;
+        }
+
+        public int WriteTimeout
+        {
+            get => _port.WriteTimeout;
+            set => _port.WriteTimeout = value > 0 ? value : DefaultTimeoutMs;
+        }
 
         public bool IsOpen => !_disposed && _port.IsOpen;
 
         public void Open()
         {
             ThrowIfDisposed();
-            if (!_port.IsOpen)
+            if (_port.IsOpen)
             {
-                _port.Open();
+                return;
             }
+            _port.Open();
         }
 
         public void Close()
@@ -54,7 +65,14 @@ namespace TestTool.Business.Services
             if (_disposed) return;
             if (_port.IsOpen)
             {
-                _port.Close();
+                try
+                {
+                    _port.Close();
+                }
+                catch
+                {
+                    // 忽略关闭异常，确保幂等
+                }
             }
         }
 
@@ -81,8 +99,15 @@ namespace TestTool.Business.Services
         public void Dispose()
         {
             if (_disposed) return;
-            _port.Dispose();
-            _disposed = true;
+            try
+            {
+                Close();
+                _port.Dispose();
+            }
+            finally
+            {
+                _disposed = true;
+            }
         }
 
         private void ThrowIfDisposed()

@@ -4,7 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
-using TestTool.Business.Models;
+using TestTool.Core.Models;
+using TestTool.Core.Services;
 using TestTool.Business.Services;
 using TestTool;
 namespace TestTool.UI
@@ -12,7 +13,7 @@ namespace TestTool.UI
     internal static class UiProgram
     {
         /// <summary>
-        ///  应用入口。
+        ///  搴旂敤鍏ュ彛銆?
         /// </summary>
         [STAThread]
         static void Main()
@@ -45,14 +46,14 @@ namespace TestTool.UI
                         .ValidateDataAnnotations()
                         .ValidateOnStart();
 
-                    services.AddTransient<Business.Services.ISerialPortAdapter, Business.Services.DefaultSerialPortAdapter>();
-                    services.AddSingleton<Business.Services.ISerialPortAdapterFactory, Business.Services.DefaultSerialPortAdapterFactory>();
-                    services.AddTransient<Business.Services.ISerialPortService, Business.Services.SerialPortService>();
-                    services.AddSingleton<Business.Services.ISerialPortServiceFactory, Business.Services.DefaultSerialPortServiceFactory>();
-                    services.AddSingleton<Business.Services.IProtocolParser, Business.Services.SimpleProtocolParser>();
-                    services.AddSingleton<Business.Services.IProtocolParserFactory, Business.Services.DefaultProtocolParserFactory>();
-                    services.AddTransient<Business.Services.IDeviceController, Business.Services.PowerDeviceController>();
-                    services.AddSingleton<Business.Services.IDeviceControllerFactory, Business.Services.DefaultDeviceControllerFactory>();
+                    services.AddTransient<ISerialPortAdapter, DefaultSerialPortAdapter>();
+                    services.AddSingleton<ISerialPortAdapterFactory, DefaultSerialPortAdapterFactory>();
+                    services.AddTransient<ISerialPortService, SerialPortService>();
+                    services.AddSingleton<ISerialPortServiceFactory, DefaultSerialPortServiceFactory>();
+                    services.AddSingleton<IProtocolParser, SimpleProtocolParser>();
+                    services.AddSingleton<IProtocolParserFactory, DefaultProtocolParserFactory>();
+                    services.AddTransient<IDeviceController, PowerDeviceController>();
+                    services.AddSingleton<IDeviceControllerFactory, DefaultDeviceControllerFactory>();
                     services.AddSingleton<Data.IConfigRepository, Data.FileConfigRepository>();
                     services.AddSingleton<IMultiDeviceCoordinator, MultiDeviceCoordinator>();
 

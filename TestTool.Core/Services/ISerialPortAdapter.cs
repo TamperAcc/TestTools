@@ -1,7 +1,7 @@
 using System;
 using System.IO.Ports;
 
-namespace TestTool.Business.Services
+namespace TestTool.Core.Services
 {
     /// <summary>
     /// 串口适配器接口，抽象底层 SerialPort，便于替换与测试。

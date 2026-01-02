@@ -1,8 +1,9 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using TestTool.Business.Enums;
-using TestTool.Business.Models;
+using TestTool.Core.Enums;
+using TestTool.Core.Models;
+using TestTool.Core.Services;
 using TestTool.Infrastructure.Constants;
 
 namespace TestTool.Business.Services

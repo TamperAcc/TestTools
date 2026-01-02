@@ -1,6 +1,6 @@
 using System;
-using TestTool.Business.Enums;
-using TestTool.Business.Models;
+using TestTool.Core.Enums;
+using TestTool.Core.Models;
 
 namespace TestTool
 {

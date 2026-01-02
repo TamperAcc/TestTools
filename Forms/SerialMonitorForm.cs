@@ -1,7 +1,7 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
-using TestTool.Business.Models;
+using TestTool.Core.Models;
 using TestTool.Forms.Base;
 using TestTool.Infrastructure.Constants;
 

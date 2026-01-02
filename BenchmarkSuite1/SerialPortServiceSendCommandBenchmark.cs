@@ -1,12 +1,14 @@
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using TestTool.Business.Services;
+using TestTool.Core.Services;
 using Microsoft.VSDiagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace TestTool.Benchmarks
 {
+    // ä»…ç”¨äºæœ¬åœ°/å¼€å‘æ€§èƒ½è§‚æµ‹ï¼Œä¸åœ¨ CI è¿è¡Œ
     [CPUUsageDiagnoser]
     public class SerialPortServiceSendCommandBenchmark
     {
@@ -14,7 +16,7 @@ namespace TestTool.Benchmarks
         [GlobalSetup]
         public void Setup()
         {
-            // »ù×¼³õÊ¼»¯£º×¢²áÄ¬ÈÏÊÊÅäÆ÷Óë¹¤³§£¬¹¹Ôì´®¿Ú·şÎñ
+            // åŸºå‡†åˆå§‹åŒ–ï¼šæ³¨å†Œé»˜è®¤é€‚é…å™¨ä¸å·¥å‚ï¼Œæ„é€ ä¸²å£æœåŠ¡
             var logger = LoggerFactory.Create(builder => { }).CreateLogger<SerialPortService>();
             var services = new ServiceCollection();
             services.AddTransient<ISerialPortAdapter, DefaultSerialPortAdapter>();
@@ -27,7 +29,7 @@ namespace TestTool.Benchmarks
         [Benchmark]
         public Task<bool> SendCommandWithoutConnection()
         {
-            // Î´Á¬½Ó×´Ì¬ÏÂ·¢ËÍÃüÁî£¬²âÁ¿Òì³£Â·¾¶¿ªÏú
+            // æœªè¿æ¥çŠ¶æ€ä¸‹å‘é€å‘½ä»¤ï¼Œæµ‹é‡å¼‚å¸¸è·¯å¾„å¼€é”€
             return _service.SendCommandAsync("TEST_COMMAND");
         }
     }

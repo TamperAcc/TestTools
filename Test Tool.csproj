@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
@@ -78,6 +78,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="Forms\SettingsForm.Fixed.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include=".github\scripts\check_onchange.ps1" />
     <None Include=".github\workflows\ci.yml" />
     <None Include=".github\workflows\options-monitor-check.yml" />
@@ -91,6 +95,10 @@
     <ProjectReference Include="TestTool.Core\TestTool.Core.csproj" />
     <ProjectReference Include="TestTool.Business\TestTool.Business.csproj" />
     <ProjectReference Include="TestTool.Infrastructure\TestTool.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Test Tool\Forms\" />
   </ItemGroup>
 
 </Project>

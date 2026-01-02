@@ -18,6 +18,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Test Tool.csproj" />
+    <ProjectReference Include="..\TestTool.UI\TestTool.UI.csproj" />
+    <ProjectReference Include="..\TestTool.Business\TestTool.Business.csproj" />
   </ItemGroup>
 
   <ItemGroup>

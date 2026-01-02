@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using TestTool.Business.Enums;
+using TestTool.Core.Enums;
 using TestTool.Business.Services;
 
 namespace TestTool

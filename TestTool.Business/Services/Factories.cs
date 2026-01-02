@@ -1,7 +1,8 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using TestTool.Business.Models;
+using TestTool.Core.Models;
+using TestTool.Core.Services;
 
 namespace TestTool.Business.Services
 {

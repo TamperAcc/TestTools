@@ -1,5 +1,5 @@
 using System;
-using TestTool.Business.Enums;
+using TestTool.Core.Enums;
 
 namespace TestTool
 {

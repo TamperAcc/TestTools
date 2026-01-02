@@ -32,6 +32,8 @@ namespace TestTool
             menuSettings = new ToolStripMenuItem();
             menuDeviceSettings = new ToolStripMenuItem();
 
+            // 设备区域面板及控件
+            pnlDevices = new Panel();
             // FCC1 控件
             lblStatusFCC1 = new Label();
             btnConnectFCC1 = new Button();
@@ -59,6 +61,7 @@ namespace TestTool
             // 一键连接/断开按钮
             btnConnectAll = new Button();
             btnDisconnectAll = new Button();
+            flpActions = new FlowLayoutPanel();
 
             menuStrip1.SuspendLayout();
             SuspendLayout();
@@ -66,6 +69,7 @@ namespace TestTool
             // 
             // menuStrip1
             // 
+            menuStrip1.Dock = DockStyle.Top;
             menuStrip1.Items.AddRange(new ToolStripItem[] { menuSettings });
             menuStrip1.Location = new Point(0, 0);
             menuStrip1.Name = "menuStrip1";
@@ -90,10 +94,15 @@ namespace TestTool
 
             // 行高和起始位置
             int rowHeight = 45;
-            int startY = 30;
+            int startY = 10;
             int labelWidth = 260;
             int buttonWidth = 70;
             int connectWidth = 80;
+            int labelX = 10;
+            int onX = labelX + labelWidth + 10;
+            int offX = onX + buttonWidth + 10;
+            int connectX = offX + buttonWidth + 10;
+            int actionSpacing = 10;
 
             // ========== FCC1 行 ==========
             // 
@@ -101,7 +110,7 @@ namespace TestTool
             // 
             lblStatusFCC1.AutoSize = false;
             lblStatusFCC1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            lblStatusFCC1.Location = new Point(12, startY);
+            lblStatusFCC1.Location = new Point(labelX, startY);
             lblStatusFCC1.Name = "lblStatusFCC1";
             lblStatusFCC1.Size = new Size(labelWidth, 35);
             lblStatusFCC1.TabIndex = 1;
@@ -113,7 +122,7 @@ namespace TestTool
             // btnOnFCC1
             // 
             btnOnFCC1.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnOnFCC1.Location = new Point(280, startY + 2);
+            btnOnFCC1.Location = new Point(onX, startY + 2);
             btnOnFCC1.Name = "btnOnFCC1";
             btnOnFCC1.Size = new Size(buttonWidth, 30);
             btnOnFCC1.TabIndex = 2;
@@ -125,7 +134,7 @@ namespace TestTool
             // btnOffFCC1
             // 
             btnOffFCC1.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnOffFCC1.Location = new Point(355, startY + 2);
+            btnOffFCC1.Location = new Point(offX, startY + 2);
             btnOffFCC1.Name = "btnOffFCC1";
             btnOffFCC1.Size = new Size(buttonWidth, 30);
             btnOffFCC1.TabIndex = 3;
@@ -137,7 +146,7 @@ namespace TestTool
             // btnConnectFCC1
             // 
             btnConnectFCC1.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnConnectFCC1.Location = new Point(508, startY + 2);
+            btnConnectFCC1.Location = new Point(connectX, startY + 2);
             btnConnectFCC1.Name = "btnConnectFCC1";
             btnConnectFCC1.Size = new Size(connectWidth, 30);
             btnConnectFCC1.TabIndex = 4;
@@ -153,7 +162,7 @@ namespace TestTool
             // 
             lblStatusFCC2.AutoSize = false;
             lblStatusFCC2.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            lblStatusFCC2.Location = new Point(12, row2Y);
+            lblStatusFCC2.Location = new Point(labelX, row2Y);
             lblStatusFCC2.Name = "lblStatusFCC2";
             lblStatusFCC2.Size = new Size(labelWidth, 35);
             lblStatusFCC2.TabIndex = 5;
@@ -165,7 +174,7 @@ namespace TestTool
             // btnOnFCC2
             // 
             btnOnFCC2.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnOnFCC2.Location = new Point(280, row2Y + 2);
+            btnOnFCC2.Location = new Point(onX, row2Y + 2);
             btnOnFCC2.Name = "btnOnFCC2";
             btnOnFCC2.Size = new Size(buttonWidth, 30);
             btnOnFCC2.TabIndex = 6;
@@ -177,7 +186,7 @@ namespace TestTool
             // btnOffFCC2
             // 
             btnOffFCC2.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnOffFCC2.Location = new Point(355, row2Y + 2);
+            btnOffFCC2.Location = new Point(offX, row2Y + 2);
             btnOffFCC2.Name = "btnOffFCC2";
             btnOffFCC2.Size = new Size(buttonWidth, 30);
             btnOffFCC2.TabIndex = 7;
@@ -189,7 +198,7 @@ namespace TestTool
             // btnConnectFCC2
             // 
             btnConnectFCC2.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnConnectFCC2.Location = new Point(508, row2Y + 2);
+            btnConnectFCC2.Location = new Point(connectX, row2Y + 2);
             btnConnectFCC2.Name = "btnConnectFCC2";
             btnConnectFCC2.Size = new Size(connectWidth, 30);
             btnConnectFCC2.TabIndex = 8;
@@ -205,7 +214,7 @@ namespace TestTool
             // 
             lblStatusFCC3.AutoSize = false;
             lblStatusFCC3.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            lblStatusFCC3.Location = new Point(12, row3Y);
+            lblStatusFCC3.Location = new Point(labelX, row3Y);
             lblStatusFCC3.Name = "lblStatusFCC3";
             lblStatusFCC3.Size = new Size(labelWidth, 35);
             lblStatusFCC3.TabIndex = 9;
@@ -217,7 +226,7 @@ namespace TestTool
             // btnOnFCC3
             // 
             btnOnFCC3.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnOnFCC3.Location = new Point(280, row3Y + 2);
+            btnOnFCC3.Location = new Point(onX, row3Y + 2);
             btnOnFCC3.Name = "btnOnFCC3";
             btnOnFCC3.Size = new Size(buttonWidth, 30);
             btnOnFCC3.TabIndex = 10;
@@ -229,7 +238,7 @@ namespace TestTool
             // btnOffFCC3
             // 
             btnOffFCC3.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnOffFCC3.Location = new Point(355, row3Y + 2);
+            btnOffFCC3.Location = new Point(offX, row3Y + 2);
             btnOffFCC3.Name = "btnOffFCC3";
             btnOffFCC3.Size = new Size(buttonWidth, 30);
             btnOffFCC3.TabIndex = 11;
@@ -241,7 +250,7 @@ namespace TestTool
             // btnConnectFCC3
             // 
             btnConnectFCC3.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnConnectFCC3.Location = new Point(508, row3Y + 2);
+            btnConnectFCC3.Location = new Point(connectX, row3Y + 2);
             btnConnectFCC3.Name = "btnConnectFCC3";
             btnConnectFCC3.Size = new Size(connectWidth, 30);
             btnConnectFCC3.TabIndex = 12;
@@ -257,7 +266,7 @@ namespace TestTool
             // 
             lblStatusHIL.AutoSize = false;
             lblStatusHIL.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            lblStatusHIL.Location = new Point(12, row4Y);
+            lblStatusHIL.Location = new Point(labelX, row4Y);
             lblStatusHIL.Name = "lblStatusHIL";
             lblStatusHIL.Size = new Size(labelWidth, 35);
             lblStatusHIL.TabIndex = 13;
@@ -269,7 +278,7 @@ namespace TestTool
             // btnOnHIL
             // 
             btnOnHIL.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnOnHIL.Location = new Point(280, row4Y + 2);
+            btnOnHIL.Location = new Point(onX, row4Y + 2);
             btnOnHIL.Name = "btnOnHIL";
             btnOnHIL.Size = new Size(buttonWidth, 30);
             btnOnHIL.TabIndex = 14;
@@ -281,7 +290,7 @@ namespace TestTool
             // btnOffHIL
             // 
             btnOffHIL.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnOffHIL.Location = new Point(355, row4Y + 2);
+            btnOffHIL.Location = new Point(offX, row4Y + 2);
             btnOffHIL.Name = "btnOffHIL";
             btnOffHIL.Size = new Size(buttonWidth, 30);
             btnOffHIL.TabIndex = 15;
@@ -293,7 +302,7 @@ namespace TestTool
             // btnConnectHIL
             // 
             btnConnectHIL.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnConnectHIL.Location = new Point(508, row4Y + 2);
+            btnConnectHIL.Location = new Point(connectX, row4Y + 2);
             btnConnectHIL.Name = "btnConnectHIL";
             btnConnectHIL.Size = new Size(connectWidth, 30);
             btnConnectHIL.TabIndex = 16;
@@ -305,12 +314,24 @@ namespace TestTool
             int row5Y = startY + rowHeight * 4 + 10;
 
             // 
+            // flpActions
+            // 
+            flpActions.AutoSize = false;
+            flpActions.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            flpActions.FlowDirection = FlowDirection.RightToLeft;
+            flpActions.WrapContents = false;
+            flpActions.Padding = new Padding(0, 8, 0, 0);
+            flpActions.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            flpActions.Size = new Size(connectWidth * 2 + actionSpacing, 50);
+            flpActions.Location = new Point(connectX + connectWidth - (connectWidth * 2 + actionSpacing), row5Y);
+
+            // 
             // btnConnectAll
             // 
-            btnConnectAll.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnConnectAll.Location = new Point(398, row5Y);
+            btnConnectAll.AutoSize = false;
+            btnConnectAll.Margin = new Padding(actionSpacing, 0, 0, 0);
             btnConnectAll.Name = "btnConnectAll";
-            btnConnectAll.Size = new Size(90, 32);
+            btnConnectAll.Size = new Size(connectWidth, 32);
             btnConnectAll.TabIndex = 17;
             btnConnectAll.Text = "一键连接";
             btnConnectAll.BackColor = Color.LightGreen;
@@ -320,10 +341,10 @@ namespace TestTool
             // 
             // btnDisconnectAll
             // 
-            btnDisconnectAll.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnDisconnectAll.Location = new Point(498, row5Y);
+            btnDisconnectAll.AutoSize = false;
+            btnDisconnectAll.Margin = new Padding(actionSpacing, 0, 0, 0);
             btnDisconnectAll.Name = "btnDisconnectAll";
-            btnDisconnectAll.Size = new Size(90, 32);
+            btnDisconnectAll.Size = new Size(connectWidth, 32);
             btnDisconnectAll.TabIndex = 18;
             btnDisconnectAll.Text = "一键断开";
             btnDisconnectAll.BackColor = Color.LightCoral;
@@ -331,39 +352,56 @@ namespace TestTool
             btnDisconnectAll.Click += btnDisconnectAll_Click;
 
             // 
+            // pnlDevices
+            // 
+            pnlDevices.Dock = DockStyle.None;
+            pnlDevices.BorderStyle = BorderStyle.FixedSingle;
+            pnlDevices.BackColor = Color.WhiteSmoke;
+            pnlDevices.Padding = new Padding(10);
+            pnlDevices.Location = new Point(10, 30);
+            pnlDevices.Name = "pnlDevices";
+            pnlDevices.Size = new Size(620, 280);
+            pnlDevices.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            pnlDevices.TabIndex = 0;
+
+            // 将控件添加到面板
+            pnlDevices.Controls.Add(lblStatusFCC1);
+            pnlDevices.Controls.Add(btnOnFCC1);
+            pnlDevices.Controls.Add(btnOffFCC1);
+            pnlDevices.Controls.Add(btnConnectFCC1);
+
+            pnlDevices.Controls.Add(lblStatusFCC2);
+            pnlDevices.Controls.Add(btnOnFCC2);
+            pnlDevices.Controls.Add(btnOffFCC2);
+            pnlDevices.Controls.Add(btnConnectFCC2);
+
+            pnlDevices.Controls.Add(lblStatusFCC3);
+            pnlDevices.Controls.Add(btnOnFCC3);
+            pnlDevices.Controls.Add(btnOffFCC3);
+            pnlDevices.Controls.Add(btnConnectFCC3);
+
+            pnlDevices.Controls.Add(lblStatusHIL);
+            pnlDevices.Controls.Add(btnOnHIL);
+            pnlDevices.Controls.Add(btnOffHIL);
+            pnlDevices.Controls.Add(btnConnectHIL);
+
+            flpActions.Controls.Add(btnDisconnectAll);
+            flpActions.Controls.Add(btnConnectAll);
+
+            pnlDevices.Controls.Add(flpActions);
+
+            // 
             // MainForm
             // 
-            ClientSize = new Size(600, 265);
+            ClientSize = new Size(640, 340);
+            Controls.Add(pnlDevices);
             Controls.Add(menuStrip1);
-            // FCC1
-            Controls.Add(lblStatusFCC1);
-            Controls.Add(btnOnFCC1);
-            Controls.Add(btnOffFCC1);
-            Controls.Add(btnConnectFCC1);
-            // FCC2
-            Controls.Add(lblStatusFCC2);
-            Controls.Add(btnOnFCC2);
-            Controls.Add(btnOffFCC2);
-            Controls.Add(btnConnectFCC2);
-            // FCC3
-            Controls.Add(lblStatusFCC3);
-            Controls.Add(btnOnFCC3);
-            Controls.Add(btnOffFCC3);
-            Controls.Add(btnConnectFCC3);
-            // HIL
-            Controls.Add(lblStatusHIL);
-            Controls.Add(btnOnHIL);
-            Controls.Add(btnOffHIL);
-            Controls.Add(btnConnectHIL);
-            // 一键操作按钮
-            Controls.Add(btnConnectAll);
-            Controls.Add(btnDisconnectAll);
 
             FormBorderStyle = FormBorderStyle.Sizable;
             MainMenuStrip = menuStrip1;
             MaximizeBox = true;
             MinimizeBox = true;
-            MinimumSize = new Size(500, 305);
+            MinimumSize = new Size(640, 340);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "电源控制工具";
@@ -380,6 +418,8 @@ namespace TestTool
         private MenuStrip menuStrip1;
         private ToolStripMenuItem menuSettings;
         private ToolStripMenuItem menuDeviceSettings;
+
+        private Panel pnlDevices;
 
         // FCC1 控件
         private Label lblStatusFCC1;
@@ -408,5 +448,6 @@ namespace TestTool
         // 一键操作按钮
         private Button btnConnectAll;
         private Button btnDisconnectAll;
+        private FlowLayoutPanel flpActions;
     }
 }

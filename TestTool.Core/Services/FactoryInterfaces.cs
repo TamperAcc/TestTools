@@ -1,6 +1,6 @@
-using TestTool.Business.Models;
+using TestTool.Core.Models;
 
-namespace TestTool.Business.Services
+namespace TestTool.Core.Services
 {
     /// <summary>
     /// 串口适配器工厂接口，用于根据配置创建适配器实例。

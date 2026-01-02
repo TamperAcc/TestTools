@@ -1,10 +1,10 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using TestTool.Business.Enums;
-using TestTool.Business.Models;
+using TestTool.Core.Enums;
+using TestTool.Core.Models;
 
-namespace TestTool.Business.Services
+namespace TestTool.Core.Services
 {
     /// <summary>
     /// 串口连接状态变化事件参数（旧状态、新状态、提示消息）。

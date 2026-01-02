@@ -8,8 +8,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
-using TestTool.Business.Enums;
-using TestTool.Business.Models;
+using TestTool.Core.Enums;
+using TestTool.Core.Models;
+using TestTool.Core.Services;
 
 namespace TestTool.Business.Services
 {
@@ -31,6 +32,12 @@ namespace TestTool.Business.Services
         private readonly TimeSpan _policyDebounce = TimeSpan.FromSeconds(1);
         private IDisposable? _optionsChangeToken;
         
+        // 重试日志节流
+        private readonly object _retryLogLock = new();
+        private readonly TimeSpan _retryLogInterval = TimeSpan.FromMilliseconds(300);
+        private DateTime _lastConnectRetryLogUtc;
+        private DateTime _lastSendRetryLogUtc;
+        
         /// <summary>
         /// 用于串口连接操作的互斥锁，避免并发连接/断开造成竞态
         /// </summary>
@@ -46,6 +53,22 @@ namespace TestTool.Business.Services
         /// </summary>
         private Channel<string>? _receiveChannel;
         
+        private void CompleteChannel(Exception? exception = null)
+        {
+            try
+            {
+                _receiveChannel?.Writer.TryComplete(exception);
+            }
+            catch
+            {
+                // ignore
+            }
+            finally
+            {
+                _receiveChannel = null;
+            }
+        }
+
         /// <summary>
         /// 当前连接状态（本地缓存）
         /// </summary>
@@ -118,7 +141,14 @@ namespace TestTool.Business.Services
                 .WaitAndRetryAsync(connectRetries, attempt => TimeSpan.FromMilliseconds(baseDelayMs * Math.Pow(2, attempt - 1)), onRetry: (outcome, timespan, retryCount, context) =>
                 {
                     var reason = outcome.Exception?.Message ?? "false-result";
-                    _logger.LogWarning("连接重试 #{Retry}，原因: {Reason}，下次延迟 {Delay}", retryCount, reason, timespan);
+                    if (ShouldThrottle(ref _lastConnectRetryLogUtc))
+                    {
+                        _logger.LogDebug("连接重试 #{Retry}，原因: {Reason}，下次延迟 {Delay}", retryCount, reason, timespan);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("连接重试 #{Retry}，原因: {Reason}，下次延迟 {Delay}", retryCount, reason, timespan);
+                    }
                 });
 
             _sendRetryPolicy = Policy.HandleResult<bool>(r => r == false)
@@ -126,7 +156,14 @@ namespace TestTool.Business.Services
                 .WaitAndRetryAsync(sendRetries, attempt => TimeSpan.FromMilliseconds(baseDelayMs * Math.Pow(2, attempt - 1)), onRetry: (outcome, timespan, retryCount, context) =>
                 {
                     var reason = outcome.Exception?.Message ?? "false-result";
-                    _logger.LogWarning("发送重试 #{Retry}，原因: {Reason}，下次延迟 {Delay}", retryCount, reason, timespan);
+                    if (ShouldThrottle(ref _lastSendRetryLogUtc))
+                    {
+                        _logger.LogDebug("发送重试 #{Retry}，原因: {Reason}，下次延迟 {Delay}", retryCount, reason, timespan);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("发送重试 #{Retry}，原因: {Reason}，下次延迟 {Delay}", retryCount, reason, timespan);
+                    }
                 });
 
             // 订阅配置变更以热更新重试策略
@@ -173,7 +210,14 @@ namespace TestTool.Business.Services
                 .WaitAndRetryAsync(connectRetries, attempt => TimeSpan.FromMilliseconds(baseDelayMs * Math.Pow(2, attempt - 1)), onRetry: (outcome, timespan, retryCount, context) =>
                 {
                     var reason = outcome.Exception?.Message ?? "false-result";
-                    _logger.LogWarning("[策略热更新] 连接重试 #{Retry}，原因: {Reason}，下次延迟 {Delay}", retryCount, reason, timespan);
+                    if (ShouldThrottle(ref _lastConnectRetryLogUtc))
+                    {
+                        _logger.LogDebug("[策略热更新] 连接重试 #{Retry}，原因: {Reason}，下次延迟 {Delay}", retryCount, reason, timespan);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[策略热更新] 连接重试 #{Retry}，原因: {Reason}，下次延迟 {Delay}", retryCount, reason, timespan);
+                    }
                 });
 
             var newSend = Policy.HandleResult<bool>(r => r == false)
@@ -181,7 +225,14 @@ namespace TestTool.Business.Services
                 .WaitAndRetryAsync(sendRetries, attempt => TimeSpan.FromMilliseconds(baseDelayMs * Math.Pow(2, attempt - 1)), onRetry: (outcome, timespan, retryCount, context) =>
                 {
                     var reason = outcome.Exception?.Message ?? "false-result";
-                    _logger.LogWarning("[策略热更新] 发送重试 #{Retry}，原因: {Reason}，下次延迟 {Delay}", retryCount, reason, timespan);
+                    if (ShouldThrottle(ref _lastSendRetryLogUtc))
+                    {
+                        _logger.LogDebug("[策略热更新] 发送重试 #{Retry}，原因: {Reason}，下次延迟 {Delay}", retryCount, reason, timespan);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[策略热更新] 发送重试 #{Retry}，原因: {Reason}，下次延迟 {Delay}", retryCount, reason, timespan);
+                    }
                 });
 
             // 原子替换策略
@@ -233,14 +284,22 @@ namespace TestTool.Business.Services
                 {
                     return await policy.ExecuteAsync(async () =>
                     {
-                        _adapter = CreateAdapter(config);
-                        _receiveChannel = _receiveChannel ?? Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
-                        _adapter.DataReceived += OnSerialPortDataReceived;
-                        await Task.Run(() => _adapter.Open(), cancellationToken).ConfigureAwait(false);
-                        _currentConfig = config;
-                        UpdateState(ConnectionState.Connected, "已连接");
-                        _logger.LogInformation("已连接到端口 {Port}（波特率 {Baud}，校验 {Parity}，停止位 {StopBits}）", config.PortName, config.BaudRate, config.Parity, config.StopBits);
-                        return true;
+                        try
+                        {
+                            _adapter = CreateAdapter(config);
+                            _receiveChannel = _receiveChannel ?? Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+                            _adapter.DataReceived += OnSerialPortDataReceived;
+                            await Task.Run(() => _adapter.Open(), cancellationToken).ConfigureAwait(false);
+                            _currentConfig = config;
+                            UpdateState(ConnectionState.Connected, "已连接");
+                            _logger.LogInformation("已连接到端口 {Port}（波特率 {Baud}，校验 {Parity}，停止位 {StopBits}）", config.PortName, config.BaudRate, config.Parity, config.StopBits);
+                            return true;
+                        }
+                        catch
+                        {
+                            CleanupAdapterForRetry();
+                            throw;
+                        }
                     }).ConfigureAwait(false);
                 }
                 else
@@ -259,7 +318,9 @@ namespace TestTool.Business.Services
             {
                 // 出错时尝试安全释放适配器，并设置错误状态
                 SafeDisposeAdapter();
+                CompleteChannel(ex);
                 UpdateState(ConnectionState.Error, $"连接失败: {ex.Message}");
+                UpdateState(ConnectionState.Disconnected, "连接失败，已回滚");
                 _logger.LogError(ex, "连接端口 {Port} 失败", config?.PortName);
                 return false;
             }
@@ -389,8 +450,7 @@ namespace TestTool.Business.Services
             {
                 _currentConfig = null;
                 // 关闭并完成接收通道
-                _receiveChannel?.Writer.TryComplete();
-                _receiveChannel = null;
+                CompleteChannel();
                 UpdateState(ConnectionState.Disconnected, "已断开");
                 return;
             }
@@ -440,14 +500,14 @@ namespace TestTool.Business.Services
 
                 // 清空字段并更新状态为已断开
                 _adapter = null;
-                _receiveChannel?.Writer.TryComplete();
-                _receiveChannel = null;
+                CompleteChannel();
                 _currentConfig = null;
                 UpdateState(ConnectionState.Disconnected, "已断开");
             }
             catch (Exception ex)
             {
                 // 处理断开过程中的异常，设置错误状态
+                CompleteChannel(ex);
                 UpdateState(ConnectionState.Error, $"断开失败: {ex.Message}");
                 _logger.LogError(ex, "断开连接失败");
             }
@@ -459,7 +519,7 @@ namespace TestTool.Business.Services
         private void OnSerialPortDataReceived(object sender, SerialDataReceivedEventArgs e)
         {
             // 如果服务已释放或适配器为空，忽略
-            if (_disposed || _adapter == null)
+            if (_disposed || _adapter == null || !_adapter.IsOpen)
             {
                 return;
             }
@@ -581,8 +641,67 @@ namespace TestTool.Business.Services
                 _adapter = null;
                 _currentConfig = null;
                 _currentState = ConnectionState.Disconnected;
-                _receiveChannel?.Writer.TryComplete();
-                _receiveChannel = null;
+                CompleteChannel();
+            }
+        }
+
+        private void CleanupAdapterForRetry()
+        {
+            try
+            {
+                if (_adapter == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    _adapter.DataReceived -= OnSerialPortDataReceived;
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                try
+                {
+                    if (_adapter.IsOpen)
+                    {
+                        _adapter.Close();
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                try
+                {
+                    _adapter.Dispose();
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+            finally
+            {
+                _adapter = null;
+            }
+        }
+
+        private bool ShouldThrottle(ref DateTime lastLogUtc)
+        {
+            lock (_retryLogLock)
+            {
+                var now = DateTime.UtcNow;
+                if (now - lastLogUtc < _retryLogInterval)
+                {
+                    return true;
+                }
+
+                lastLogUtc = now;
+                return false;
             }
         }
 
@@ -639,6 +758,7 @@ namespace TestTool.Business.Services
 
                 // 释放信号量资源
                 _connectionLock.Dispose();
+                CompleteChannel();
             }
         }
     }

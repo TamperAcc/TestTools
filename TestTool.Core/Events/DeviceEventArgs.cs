@@ -1,7 +1,7 @@
 using System;
-using TestTool.Business.Enums;
+using TestTool.Core.Enums;
 
-namespace TestTool.Business.Events
+namespace TestTool.Core.Events
 {
     public class DeviceEventArgs<T> : EventArgs
     {

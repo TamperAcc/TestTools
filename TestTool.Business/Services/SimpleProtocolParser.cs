@@ -1,8 +1,9 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using TestTool.Business.Enums;
-using TestTool.Business.Models;
+using TestTool.Core.Enums;
+using TestTool.Core.Models;
+using TestTool.Core.Services;
 
 namespace TestTool.Business.Services
 {

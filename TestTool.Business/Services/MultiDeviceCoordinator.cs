@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using TestTool.Business.Enums;
-using TestTool.Business.Events;
-using TestTool.Business.Models;
+using TestTool.Core.Enums;
+using TestTool.Core.Events;
+using TestTool.Core.Models;
+using TestTool.Core.Services;
 
 namespace TestTool.Business.Services
 {

@@ -3,9 +3,9 @@ using System.IO.Ports;
 using System.Text;
 using System.ComponentModel.DataAnnotations;
 using System.Collections.Generic;
-using TestTool.Business.Enums;
+using TestTool.Core.Enums;
 
-namespace TestTool.Business.Models
+namespace TestTool.Core.Models
 {
     public class ConnectionConfig
     {
@@ -25,14 +25,22 @@ namespace TestTool.Business.Models
 
         public ConnectionConfig NormalizeWithDefaults()
         {
-            if (BaudRate <= 0) BaudRate = 115200;
-            if (DataBits <= 0) DataBits = 8;
-            if (!Enum.IsDefined(typeof(Parity), Parity)) Parity = Parity.None;
-            if (!Enum.IsDefined(typeof(StopBits), StopBits)) StopBits = StopBits.One;
-            Encoding ??= Encoding.UTF8;
-            if (ReadTimeout <= 0) ReadTimeout = 2000;
-            if (WriteTimeout <= 0) WriteTimeout = 2000;
-            return this;
+            return new ConnectionConfig
+            {
+                PortName = PortName,
+                BaudRate = BaudRate > 0 ? BaudRate : 115200,
+                DataBits = DataBits > 0 ? DataBits : 8,
+                Parity = Enum.IsDefined(typeof(Parity), Parity) ? Parity : Parity.None,
+                StopBits = Enum.IsDefined(typeof(StopBits), StopBits) ? StopBits : StopBits.One,
+                Encoding = Encoding ?? Encoding.UTF8,
+                ReadTimeout = ReadTimeout > 0 ? ReadTimeout : 2000,
+                WriteTimeout = WriteTimeout > 0 ? WriteTimeout : 2000
+            };
+        }
+
+        public ConnectionConfig WithDefaults()
+        {
+            return NormalizeWithDefaults();
         }
 
         public ConnectionConfig() { }
@@ -109,24 +117,28 @@ namespace TestTool.Business.Models
 
     public class AppConfig
     {
+        [Obsolete("请使用 Devices 字典访问设备配置", false)]
         public string SelectedPort
         {
             get => GetDeviceConfig(DeviceType.FCC1).SelectedPort;
             set => GetDeviceConfig(DeviceType.FCC1).SelectedPort = value;
         }
 
+        [Obsolete("请使用 Devices 字典访问设备配置", false)]
         public bool IsPortLocked
         {
             get => GetDeviceConfig(DeviceType.FCC1).IsPortLocked;
             set => GetDeviceConfig(DeviceType.FCC1).IsPortLocked = value;
         }
 
+        [Obsolete("请使用 Devices 字典访问设备配置", false)]
         public string DeviceName
         {
             get => GetDeviceConfig(DeviceType.FCC1).DeviceName;
             set => GetDeviceConfig(DeviceType.FCC1).DeviceName = value;
         }
 
+        [Obsolete("请使用 Devices 字典访问设备配置", false)]
         public ConnectionConfig ConnectionSettings
         {
             get => GetDeviceConfig(DeviceType.FCC1).ConnectionSettings;
@@ -143,19 +155,6 @@ namespace TestTool.Business.Models
         public AppConfig()
         {
             RetryPolicy = new RetryPolicyConfig();
-            InitializeDefaultDevices();
-        }
-
-        private void InitializeDefaultDevices()
-        {
-            if (!Devices.ContainsKey(DeviceType.FCC1))
-                Devices[DeviceType.FCC1] = new DeviceConfig(DeviceType.FCC1, "FCC1电源");
-            if (!Devices.ContainsKey(DeviceType.FCC2))
-                Devices[DeviceType.FCC2] = new DeviceConfig(DeviceType.FCC2, "FCC2电源");
-            if (!Devices.ContainsKey(DeviceType.FCC3))
-                Devices[DeviceType.FCC3] = new DeviceConfig(DeviceType.FCC3, "FCC3电源");
-            if (!Devices.ContainsKey(DeviceType.HIL))
-                Devices[DeviceType.HIL] = new DeviceConfig(DeviceType.HIL, "HIL电源");
         }
 
         public DeviceConfig GetDeviceConfig(DeviceType type)

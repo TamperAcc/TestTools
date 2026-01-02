@@ -1,6 +1,6 @@
 using System;
 
-namespace TestTool.Business.Enums
+namespace TestTool.Core.Enums
 {
     /// <summary>
     /// 连接状态枚举，用于表示串口连接流程各阶段

@@ -5,9 +5,10 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using TestTool.Business.Models;
+using TestTool.Core.Models;
+using TestTool.Core.Services;
+using TestTool.Core.Enums;
 using TestTool.Business.Services;
-using TestTool.Business.Enums;
 using Polly;
 using Xunit;
 
@@ -125,13 +126,49 @@ namespace TestTool.Tests
             var handled = false;
             svc.DataReceived += (_, __) => { handled = true; throw new InvalidOperationException("boom"); };
 
-            // 触发 DataReceived
+            // 瑙﹀彂 DataReceived
             adapter.WriteLine("TEST");
 
-            Assert.True(handled); // 事件触发过
-            Assert.True(svc.IsConnected); // 服务保持连接
+            Assert.True(handled); // 浜嬩欢瑙﹀彂杩?
+            Assert.True(svc.IsConnected); // 鏈嶅姟淇濇寔杩炴帴
         }
 
+        [Fact]
+        public async Task ConnectAsync_Fails_RollsBackStateAndDisposes()
+        {
+            var adapter = new FakeAdapter();
+            adapter.OpenBehavior = () =>
+            {
+                adapter.OpenAttempts++;
+                throw new InvalidOperationException("fail");
+            };
+
+            var options = new StubOptionsMonitor(new AppConfig { RetryPolicy = new RetryPolicyConfig { ConnectRetries = 2 } });
+            var logger = new Mock<ILogger<SerialPortService>>();
+            var factory = new StubAdapterFactory(adapter);
+            var svc = new SerialPortService(logger.Object, factory, options);
+
+            var ok = await svc.ConnectAsync(new ConnectionConfig("COM1"));
+
+            Assert.False(ok);
+            Assert.Equal(2, adapter.OpenAttempts);
+            Assert.Equal(ConnectionState.Disconnected, svc.CurrentState);
+        }
+
+        [Fact]
+        public async Task SendCommandAsync_WhenNotConnected_ReturnsFalseAndSetsError()
+        {
+            var adapter = new FakeAdapter();
+            var options = new StubOptionsMonitor(new AppConfig());
+            var logger = new Mock<ILogger<SerialPortService>>();
+            var factory = new StubAdapterFactory(adapter);
+            var svc = new SerialPortService(logger.Object, factory, options);
+
+            var ok = await svc.SendCommandAsync("CMD");
+
+            Assert.False(ok);
+            Assert.Equal(ConnectionState.Error, svc.CurrentState);
+        }
         private class StubAdapterFactory : ISerialPortAdapterFactory
         {
             private readonly ISerialPortAdapter _adapter;

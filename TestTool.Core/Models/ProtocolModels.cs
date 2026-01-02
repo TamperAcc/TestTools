@@ -1,6 +1,6 @@
-using TestTool.Business.Enums;
+using TestTool.Core.Enums;
 
-namespace TestTool.Business.Models
+namespace TestTool.Core.Models
 {
     /// <summary>
     /// 解析后的帧信息，保留原始文本和可选的业务字段。

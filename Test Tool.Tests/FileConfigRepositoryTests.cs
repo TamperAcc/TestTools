@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using TestTool.Business.Models;
+using TestTool.Core.Models;
 using TestTool.Data;
 using Xunit;
 

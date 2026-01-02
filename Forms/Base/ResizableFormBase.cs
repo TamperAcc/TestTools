@@ -1,13 +1,13 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
-using TestTool.Business.Models;
+using TestTool.Core.Models;
 using TestTool.Infrastructure.Constants;
 
 namespace TestTool.Forms.Base
 {
     /// <summary>
-    /// 可调整大小的窗体基类：提供边缘拖拽调整大小和屏幕边界检查功能
+    /// 可调整大小的窗体基类：提供边缘拖拽调整大小和屏幕边界检查功�?
     /// </summary>
     public class ResizableFormBase : Form
     {
@@ -17,7 +17,7 @@ namespace TestTool.Forms.Base
         protected virtual int ResizeHandleSize => AppConstants.UI.ResizeHandleSize;
 
         /// <summary>
-        /// 重写 WndProc 以支持边缘拖拽调整窗口大小
+        /// 重写 WndProc 以支持边缘拖拽调整窗口大�?
         /// </summary>
         protected override void WndProc(ref Message m)
         {
@@ -60,7 +60,7 @@ namespace TestTool.Forms.Base
         }
 
         /// <summary>
-        /// 应用保存的窗口位置
+        /// 应用保存的窗口位�?
         /// </summary>
         /// <param name="position">窗口位置配置</param>
         /// <param name="fallbackStartPosition">位置无效时的备用起始位置</param>
@@ -83,7 +83,7 @@ namespace TestTool.Forms.Base
         /// <returns>窗口位置配置对象</returns>
         protected MonitorWindowPosition GetCurrentWindowPosition()
         {
-            // 只有在正常窗口状态下才返回有效位置
+            // 只有在正常窗口状态下才返回有效位�?
             if (this.WindowState == FormWindowState.Normal)
             {
                 return new MonitorWindowPosition(
@@ -100,7 +100,7 @@ namespace TestTool.Forms.Base
         /// <summary>
         /// 确保窗口在屏幕可见范围内
         /// </summary>
-        /// <param name="fallbackStartPosition">完全不可见时的备用起始位置</param>
+        /// <param name="fallbackStartPosition">完全不可见时的备用起始位�?/param>
         protected void EnsureVisibleOnScreen(FormStartPosition fallbackStartPosition = FormStartPosition.CenterScreen)
         {
             var screen = Screen.FromControl(this);
@@ -114,7 +114,7 @@ namespace TestTool.Forms.Base
                 return;
             }
 
-            // 调整位置使窗口完全可见
+            // 调整位置使窗口完全可�?
             if (Right > workingArea.Right)
                 Left = workingArea.Right - Width;
             if (Bottom > workingArea.Bottom)

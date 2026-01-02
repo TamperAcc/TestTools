@@ -1,5 +1,5 @@
 using Xunit;
-using TestTool.Business.Models;
+using TestTool.Core.Models;
 
 namespace TestTool.Tests.Models;
 

@@ -1,6 +1,6 @@
 using System.Drawing;
 using System.Windows.Forms;
-using TestTool.Business.Enums;
+using TestTool.Core.Enums;
 using TestTool.Infrastructure.Constants;
 
 namespace TestTool.Infrastructure.Helpers
@@ -28,7 +28,7 @@ namespace TestTool.Infrastructure.Helpers
                 }
                 catch (ObjectDisposedException)
                 {
-                    // 控件已释放，忽略
+                    // 鎺т欢宸查噴鏀撅紝蹇界暐
                 }
             }
             else

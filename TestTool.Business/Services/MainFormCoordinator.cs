@@ -2,7 +2,9 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using TestTool.Business.Models;
+using TestTool.Core.Models;
+using TestTool.Core.Services;
+using TestTool.Core.Enums;
 
 namespace TestTool.Business.Services
 {
@@ -65,11 +67,12 @@ namespace TestTool.Business.Services
 
             // 加载持久化配置
             _appConfig = await _configRepository.LoadAsync().ConfigureAwait(false);
+            var deviceConfig = _appConfig.GetDeviceConfig(DeviceType.FCC1);
 
             // 创建并初始化设备控制器
             _deviceController = _deviceControllerFactory.Create();
             await _deviceController.InitializeAsync(_serialPortService).ConfigureAwait(false);
-            _deviceController.DeviceName = _appConfig.DeviceName;
+            _deviceController.DeviceName = deviceConfig.DeviceName;
 
             // 订阅串口与设备事件，供 UI 使用
             _serialPortService.ConnectionStateChanged += OnConnectionStateChanged;
@@ -84,15 +87,16 @@ namespace TestTool.Business.Services
         public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
         {
             EnsureInitialized();
-            if (string.IsNullOrWhiteSpace(_appConfig.SelectedPort))
+            var deviceConfig = _appConfig.GetDeviceConfig(DeviceType.FCC1);
+            if (string.IsNullOrWhiteSpace(deviceConfig.SelectedPort))
             {
                 _logger?.LogWarning("ConnectAsync skipped: SelectedPort is empty");
                 return false;
             }
 
             // 组装连接配置（包含串口参数和编码、超时）
-            var settings = (_appConfig.ConnectionSettings ?? new ConnectionConfig()).NormalizeWithDefaults();
-            var config = new ConnectionConfig(_appConfig.SelectedPort)
+            var settings = (deviceConfig.ConnectionSettings ?? new ConnectionConfig()).NormalizeWithDefaults();
+            var config = new ConnectionConfig(deviceConfig.SelectedPort)
             {
                 BaudRate = settings.BaudRate,
                 DataBits = settings.DataBits,
@@ -138,12 +142,13 @@ namespace TestTool.Business.Services
         public bool TryUpdateConnectionConfig(string port, int baudRate, bool isLocked)
         {
             EnsureInitialized();
+            var deviceConfig = _appConfig.GetDeviceConfig(DeviceType.FCC1);
             if (string.IsNullOrWhiteSpace(port)) return false;
-            _appConfig.SelectedPort = port;
-            _appConfig.IsPortLocked = isLocked;
-            _appConfig.ConnectionSettings ??= new ConnectionConfig();
-            _appConfig.ConnectionSettings.BaudRate = baudRate;
-            return _appConfig.ConnectionSettings.IsValid();
+            deviceConfig.SelectedPort = port;
+            deviceConfig.IsPortLocked = isLocked;
+            deviceConfig.ConnectionSettings ??= new ConnectionConfig();
+            deviceConfig.ConnectionSettings.BaudRate = baudRate;
+            return deviceConfig.ConnectionSettings.IsValid();
         }
 
         private void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs e)

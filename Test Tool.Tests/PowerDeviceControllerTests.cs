@@ -2,9 +2,10 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
-using TestTool.Business.Enums;
-using TestTool.Business.Models;
+using TestTool.Core.Enums;
+using TestTool.Core.Models;
 using TestTool.Business.Services;
+using TestTool.Core.Services;
 using Xunit;
 
 namespace TestTool.Tests

@@ -4,21 +4,23 @@ using System.Drawing;
 using System.IO.Ports;
 using System.Linq;
 using System.Windows.Forms;
-using TestTool.Business.Enums;
-using TestTool.Business.Models;
+using TestTool.Core.Enums;
+using TestTool.Core.Models;
 using TestTool.Infrastructure.Constants;
 using TestTool.Infrastructure.Helpers;
+using TestTool.Forms.Base;
 
 namespace TestTool
 {
     /// <summary>
     /// 多设备设置窗口：统一管理 4 个设备的串口配置
     /// </summary>
-    public partial class MultiDeviceSettingsForm : Form, IMultiDeviceSettingsView
+    public partial class MultiDeviceSettingsForm : ResizableFormBase, IMultiDeviceSettingsView
     {
         private readonly AppConfig _appConfig;
         private readonly MainForm _mainForm;
         private readonly IMultiDeviceSettingsPresenter? _presenter;
+        private EventHandler<MonitorStateChangedEventArgs>? _monitorStateHandler;
 
         // 每设备的控件集合
         private readonly Dictionary<DeviceType, DeviceSettingsPanel> _devicePanels = new();
@@ -28,9 +30,6 @@ namespace TestTool
 
         // 单个设备设置变化事件（锁定时触发）
         public event EventHandler<DeviceSettingsChangedEventArgs>? DeviceSettingsChanged;
-
-        // 窗口边缘感应范围
-        private const int RESIZE_HANDLE_SIZE = AppConstants.UI.ResizeHandleSize;
 
         public MultiDeviceSettingsForm() : this(new AppConfig(), null!)
         {
@@ -48,7 +47,8 @@ namespace TestTool
         {
             _presenter = presenter ?? throw new ArgumentNullException(nameof(presenter));
             _presenter.Bind(this);
-            _mainForm.MonitorStateChanged += (_, e) => _presenter.UpdateMonitorState(e.DeviceType, e.IsOpen);
+            _monitorStateHandler = (_, e) => _presenter.UpdateMonitorState(e.DeviceType, e.IsOpen);
+            _mainForm.MonitorStateChanged += _monitorStateHandler;
         }
 
         private void InitializeComponent()
@@ -189,48 +189,18 @@ namespace TestTool
         {
             if (_devicePanels.TryGetValue(deviceType, out var panel))
             {
-                panel.SetMonitorState(isOpen);
+                UIHelper.SafeInvoke(this, () => panel.SetMonitorState(isOpen));
             }
         }
 
-        protected override void WndProc(ref Message m)
+        protected override void Dispose(bool disposing)
         {
-            const int WM_NCHITTEST = 0x0084;
-            const int HTLEFT = 10;
-            const int HTRIGHT = 11;
-            const int HTTOP = 12;
-            const int HTTOPLEFT = 13;
-            const int HTTOPRIGHT = 14;
-            const int HTBOTTOM = 15;
-            const int HTBOTTOMLEFT = 16;
-            const int HTBOTTOMRIGHT = 17;
-
-            if (m.Msg == WM_NCHITTEST)
+            if (disposing && _mainForm != null && _monitorStateHandler != null)
             {
-                base.WndProc(ref m);
-                var cursor = this.PointToClient(Cursor.Position);
-
-                if (cursor.X <= RESIZE_HANDLE_SIZE && cursor.Y <= RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTTOPLEFT;
-                else if (cursor.X >= this.ClientSize.Width - RESIZE_HANDLE_SIZE && cursor.Y <= RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTTOPRIGHT;
-                else if (cursor.X <= RESIZE_HANDLE_SIZE && cursor.Y >= this.ClientSize.Height - RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTBOTTOMLEFT;
-                else if (cursor.X >= this.ClientSize.Width - RESIZE_HANDLE_SIZE && cursor.Y >= this.ClientSize.Height - RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTBOTTOMRIGHT;
-                else if (cursor.X <= RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTLEFT;
-                else if (cursor.X >= this.ClientSize.Width - RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTRIGHT;
-                else if (cursor.Y <= RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTTOP;
-                else if (cursor.Y >= this.ClientSize.Height - RESIZE_HANDLE_SIZE)
-                    m.Result = (IntPtr)HTBOTTOM;
+                _mainForm.MonitorStateChanged -= _monitorStateHandler;
+                _monitorStateHandler = null;
             }
-            else
-            {
-                base.WndProc(ref m);
-            }
+            base.Dispose(disposing);
         }
     }
 
@@ -319,7 +289,7 @@ namespace TestTool
             {
                 Location = new Point(240, 17),
                 Size = new Size(100, 25),
-                DropDownStyle = ComboBoxStyle.DropDown,
+                DropDownStyle = ComboBoxStyle.DropDownList,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             LoadBaudRates();
@@ -330,7 +300,7 @@ namespace TestTool
             }
             else
             {
-                _cmbBaudRate.Text = baudRate.ToString();
+                _cmbBaudRate.SelectedIndex = 0;
             }
 
             // 锁定按钮 - 使用左锚定，固定位置
@@ -429,21 +399,12 @@ namespace TestTool
 
         private void BtnLock_Click(object? sender, EventArgs e)
         {
-            // 验证当前设置
-            var port = _cmbPort.SelectedItem?.ToString() ?? string.Empty;
-            if (port == "无可用串口") port = string.Empty;
-
-            if (!int.TryParse(_cmbBaudRate.Text, out var baudRate) || baudRate <= 0)
+            if (!_isLocked && !ValidateSettings())
             {
-                baudRate = 115200;
+                return;
             }
 
-            _isLocked = !_isLocked;
-            UpdateLockButtonState();
-            UpdateControlsState();
-
-            // 锁定或解锁时都立即触发保存事件
-            SettingsLocked?.Invoke(this, new DeviceSettingsChangedEventArgs(_deviceType, port, baudRate, _isLocked));
+            SetLocked(!_isLocked);
         }
 
         private void BtnMonitor_Click(object? sender, EventArgs e)
@@ -494,10 +455,18 @@ namespace TestTool
 
         public bool ValidateSettings()
         {
-            if (_cmbPort.SelectedItem == null || _cmbPort.SelectedItem.ToString() == "无可用串口")
+            var port = _cmbPort.SelectedItem?.ToString() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(port) || port == "无可用串口")
             {
-                // 允许不选择串口（设备未配置）
-                return true;
+                MessageBox.Show($"{_deviceType} 未选择可用串口，无法锁定。", "设置校验", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
+            var lockedPorts = _getLockedPorts?.Invoke(_deviceType);
+            if (lockedPorts != null && lockedPorts.Contains(port))
+            {
+                MessageBox.Show($"{_deviceType} 选择的串口 {port} 已被其他设备占用。", "串口占用提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
             }
 
             if (!int.TryParse(_cmbBaudRate.Text, out var baudRate) || baudRate <= 0)
@@ -525,24 +494,15 @@ namespace TestTool
         /// </summary>
         public void SetLocked(bool locked)
         {
-            // 如果状态没有变化，不做任何操作
             if (_isLocked == locked)
                 return;
 
-            // 获取当前设置
-            var port = _cmbPort.SelectedItem?.ToString() ?? string.Empty;
-            if (port == "无可用串口") port = string.Empty;
-
-            if (!int.TryParse(_cmbBaudRate.Text, out var baudRate) || baudRate <= 0)
-            {
-                baudRate = 115200;
-            }
+            var (port, baudRate, _) = GetSettings();
 
             _isLocked = locked;
             UpdateLockButtonState();
             UpdateControlsState();
 
-            // 触发保存事件（与单击锁定按钮相同的行为）
             SettingsLocked?.Invoke(this, new DeviceSettingsChangedEventArgs(_deviceType, port, baudRate, _isLocked));
         }
 
@@ -558,6 +518,8 @@ namespace TestTool
             var currentSelection = _cmbPort.SelectedItem?.ToString();
             LoadAvailablePorts();
 
+            var hasConflict = !string.IsNullOrEmpty(currentSelection) && !_cmbPort.Items.Contains(currentSelection) && currentSelection != "无可用串口";
+
             // 尝试恢复之前的选择
             if (!string.IsNullOrEmpty(currentSelection) && _cmbPort.Items.Contains(currentSelection))
             {
@@ -566,6 +528,11 @@ namespace TestTool
             else if (_cmbPort.Items.Count > 0 && _cmbPort.SelectedIndex == -1)
             {
                 _cmbPort.SelectedIndex = 0;
+            }
+
+            if (hasConflict && _cmbPort.SelectedItem != null && _cmbPort.SelectedItem.ToString() != currentSelection)
+            {
+                MessageBox.Show($"{_deviceType} 当前选择的串口已被占用，已切换到 {_cmbPort.SelectedItem}。", "串口占用提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
