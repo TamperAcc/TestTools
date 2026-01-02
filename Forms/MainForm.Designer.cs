@@ -95,13 +95,13 @@ namespace TestTool
             // 行高和起始位置
             int rowHeight = 45;
             int startY = 10;
-            int labelWidth = 260;
+            int labelWidth = 280;
             int buttonWidth = 70;
             int connectWidth = 80;
             int labelX = 10;
-            int onX = labelX + labelWidth + 10;
-            int offX = onX + buttonWidth + 10;
-            int connectX = offX + buttonWidth + 10;
+            int onX = labelX + labelWidth + 20;
+            int offX = onX + buttonWidth + 20;
+            int connectX = offX + buttonWidth + 20;
             int actionSpacing = 10;
 
             // ========== FCC1 行 ==========
